@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>UI tests</title>
+</head>
+<body>
+<pre id="results">running...</pre>
+<script>
+  // Skip the saloon-doors intro so it doesn't cover the page during tests.
+  try { sessionStorage.setItem('hanks-saloon-doors-seen', '1'); } catch {}
+</script>
+<iframe id="app" src="../site/index.html" style="width: 800px; height: 900px"></iframe>
+<script type="module">
+  import { test, info, assert, withFetch, jsonResponse, waitFor, finish } from './harness.js';
+  import { TEXT } from '../site/js/copy.js';
+
+  const gradeText = (percent) => TEXT.trivia.grades.find(([minimum]) => percent >= minimum)[2];
+
+  const frame = document.getElementById('app');
+  await new Promise((resolve) => {
+    if (frame.contentDocument?.readyState === 'complete' && frame.contentDocument.querySelector('#view-home')) resolve();
+    else frame.addEventListener('load', resolve, { once: true });
+  });
+  const win = frame.contentWindow;
+  const doc = frame.contentDocument;
+  const $ = (selector) => doc.querySelector(selector);
+  const shown = (selector) => {
+    const el = $(selector);
+    return el && !el.hidden && win.getComputedStyle(el).display !== 'none';
+  };
+  const text = (selector) => $(selector).textContent.trim();
+  const noFetch = () => { throw new Error('fetch should not have been called'); };
+
+  async function go(view) {
+    win.location.hash = view;
+    await waitFor(() => shown(`#view-${view}`), `view ${view} visible`);
+  }
+
+  function setInput(selector, value) {
+    const input = $(selector);
+    input.value = value;
+    input.dispatchEvent(new win.Event('input', { bubbles: true }));
+  }
+
+  const submit = (selector) => $(selector).requestSubmit();
+  const pressKey = (key) => doc.dispatchEvent(new win.KeyboardEvent('keydown', { key, bubbles: true }));
+
+  function triviaItem(question, correct, incorrect, difficulty = 'easy', category = 'General Knowledge') {
+    const enc = encodeURIComponent;
+    return { category: enc(category), difficulty, question: enc(question),
+      correct_answer: enc(correct), incorrect_answers: incorrect.map(enc) };
+  }
+
+  // --- Menu -----------------------------------------------------------------
+  await test('home view is shown first, with Home marked current', async () => {
+    assert(shown('#view-home'), 'home hidden');
+    for (const v of ['joke', 'define', 'trivia']) assert(!shown(`#view-${v}`), `${v} visible`);
+    assert(doc.querySelector('nav a[aria-current="page"]').hash === '#home', 'wrong current link');
+  });
+
+  await test('menu switches views and marks the current link', async () => {
+    for (const v of ['joke', 'define', 'trivia', 'home']) {
+      await go(v);
+      const visible = ['home', 'joke', 'define', 'trivia'].filter((name) => shown(`#view-${name}`));
+      assert(visible.length === 1 && visible[0] === v, `visible: ${visible}`);
+      assert(doc.querySelector('nav a[aria-current="page"]').hash === `#${v}`, 'wrong current link');
+    }
+  });
+
+  await test('home page links to every activity', async () => {
+    const links = [...doc.querySelectorAll('.activities a')].map((a) => a.hash);
+    assert(JSON.stringify(links) === JSON.stringify(['#joke', '#define', '#trivia']), links);
+  });
+
+  await test('saloon name, title and logo are in place', async () => {
+    assert(doc.title === "Hank's Saloon", doc.title);
+    assert(text('.brand-name') === "Hank's Saloon" && text('#home-heading') === "Hank's Saloon");
+    assert(doc.querySelectorAll('use[href="#logo"]').length >= 3, 'logo missing');
+    assert(!doc.querySelector('.doors'), 'doors intro shown although already seen');
+  });
+
+  await test('unknown address falls back to home', async () => {
+    win.location.hash = 'nonsense';
+    await waitFor(() => shown('#view-home'), 'home visible');
+  });
+
+  // --- Joke -------------------------------------------------------------------
+  await test('joke: two-part joke shows setup, then punchline after a pause', async () => {
+    await go('joke');
+    await withFetch(win, async () => jsonResponse({ type: 'twopart', setup: 'Setup?', delivery: 'Punchline!' }), async () => {
+      $('#joke-button').click();
+      assert(text('#joke-status') === TEXT.joke.loading, 'no loading message');
+      assert($('#joke-button').disabled, 'button not disabled while loading');
+      await waitFor(() => shown('#joke-card'), 'joke card');
+      assert(text('#joke-text') === 'Setup?', text('#joke-text'));
+      assert(!shown('#joke-punchline'), 'punchline shown immediately');
+      assert($('#joke-button').disabled, 'button re-enabled before punchline');
+      await waitFor(() => shown('#joke-punchline'), 'punchline');
+      assert(text('#joke-punchline') === 'Punchline!');
+      await waitFor(() => !$('#joke-button').disabled, 'button re-enabled');
+      assert(text('#joke-button') === TEXT.joke.again, text('#joke-button'));
+      assert(text('#joke-status') === '', 'status not cleared');
+    });
+  });
+
+  await test('joke: single joke keeps punchline hidden and line breaks intact', async () => {
+    await withFetch(win, async () => jsonResponse({ type: 'single', joke: 'Line one\nLine two' }), async () => {
+      $('#joke-button').click();
+      await waitFor(() => !$('#joke-button').disabled && shown('#joke-card'), 'joke shown');
+      assert(!shown('#joke-punchline'), 'punchline visible');
+      assert($('#joke-text').textContent === 'Line one\nLine two', 'text changed');
+      assert(win.getComputedStyle($('#joke-text')).whiteSpace === 'pre-line', 'line breaks not preserved');
+    });
+  });
+
+  await test('joke: HTML in API text is shown as text, not rendered', async () => {
+    await withFetch(win, async () => jsonResponse({ type: 'single', joke: '<img src=x onerror=alert(1)><b>bold</b>' }), async () => {
+      $('#joke-button').click();
+      await waitFor(() => !$('#joke-button').disabled, 'done');
+      assert($('#joke-text').children.length === 0, 'HTML was rendered');
+      assert(text('#joke-text').includes('<b>bold</b>'), 'text missing');
+    });
+  });
+
+  await test('joke: network failure shows error and re-enables button', async () => {
+    await withFetch(win, () => Promise.reject(new TypeError('Failed to fetch')), async () => {
+      $('#joke-button').click();
+      await waitFor(() => $('#joke-status').classList.contains('status-error'), 'error status');
+      assert(text('#joke-status').includes('telegraph line to the joke teller is down'), text('#joke-status'));
+      assert(!shown('#joke-card'), 'stale joke still visible');
+      assert(!$('#joke-button').disabled, 'button still disabled');
+    });
+  });
+
+  // --- Define -----------------------------------------------------------------
+  await test('define: blank word shows a warning without a request', async () => {
+    await go('define');
+    await withFetch(win, noFetch, async () => {
+      setInput('#define-input', '   ');
+      submit('#define-form');
+      assert($('#define-status').classList.contains('status-warning'), 'no warning');
+      assert(text('#define-status') === TEXT.define.blank);
+    });
+  });
+
+  await test('define: shows the word and its definition', async () => {
+    let requested = '';
+    await withFetch(win, async (url) => { requested = url; return jsonResponse([{ meanings: [{ definitions: [{ definition: 'A test definition.' }] }] }]); }, async () => {
+      setInput('#define-input', '  hello ');
+      submit('#define-form');
+      assert(text('#define-status') === TEXT.define.loading('hello'), 'no loading message');
+      await waitFor(() => shown('#define-card'), 'definition card');
+      assert(text('#define-word') === 'hello', text('#define-word'));
+      assert(text('#define-text') === 'A test definition.');
+      assert(requested.endsWith('/hello'), requested);
+      assert(text('#define-status') === '', 'status not cleared');
+    });
+  });
+
+  await test('define: unknown word shows error and hides old definition', async () => {
+    await withFetch(win, async () => jsonResponse({ title: 'No Definitions Found' }, 404), async () => {
+      setInput('#define-input', 'qwzxv');
+      submit('#define-form');
+      await waitFor(() => $('#define-status').classList.contains('status-error'), 'error');
+      assert(text('#define-status') === "Never heard of “qwzxv”, partner. It ain't in the dictionary.", text('#define-status'));
+      assert(!shown('#define-card'), 'old definition still shown');
+    });
+  });
+
+  // --- Trivia -----------------------------------------------------------------
+  await test('trivia: invalid question counts are rejected without a request', async () => {
+    await go('trivia');
+    await withFetch(win, noFetch, async () => {
+      for (const value of ['0', '21', '', '2.5']) {
+        setInput('#trivia-amount', value);
+        submit('#trivia-setup');
+        assert(text('#trivia-status') === TEXT.trivia.badAmount(20), `value ${value}: ${text('#trivia-status')}`);
+      }
+    });
+    setInput('#trivia-amount', '3');
+  });
+
+  await test('trivia: rate limit shows error and stays on setup', async () => {
+    await withFetch(win, async () => jsonResponse({ response_code: 5, results: [] }, 429), async () => {
+      submit('#trivia-setup');
+      await waitFor(() => $('#trivia-status').classList.contains('status-error'), 'error');
+      assert(text('#trivia-status').includes('one request every 5 seconds'));
+      assert(shown('#trivia-setup') && !shown('#trivia-play'), 'left setup screen');
+    });
+  });
+
+  await test('trivia: full quiz by clicking and by keyboard', async () => {
+    const items = [
+      triviaItem('What does arr[0] return?', 'First item', ['[last]', 'None', 'Error'], 'hard', 'Science: Computers'),
+      triviaItem('Second?', 'B', ['A', 'C', 'D'], 'medium'),
+      triviaItem('Third?', 'Yes', ['No', 'Maybe', 'Later']),
+    ];
+    let requested = '';
+    await withFetch(win, async (url) => { requested = url; return jsonResponse({ response_code: 0, results: items }); }, async () => {
+      $('#trivia-difficulty').value = 'hard';
+      submit('#trivia-setup');
+      await waitFor(() => shown('#trivia-play'), 'quiz started');
+    });
+    assert(requested.includes('amount=3') && requested.includes('difficulty=hard'), requested);
+    assert(!shown('#trivia-setup'), 'setup still visible');
+
+    // Question 1: answer correctly by clicking.
+    assert(text('#trivia-progress') === TEXT.trivia.progress(1, 3), text('#trivia-progress'));
+    assert(text('#trivia-question') === 'What does arr[0] return?', text('#trivia-question'));
+    assert(text('#trivia-category') === 'Science: Computers');
+    assert($('#trivia-badge').classList.contains('difficulty-hard') && text('#trivia-badge') === TEXT.trivia.difficulty.hard);
+    const bullets = () => [...$('#trivia-bullets').children].map((b) => b.className.replace('bullet', '').trim() || 'empty');
+    assert(JSON.stringify(bullets()) === '["current","empty","empty"]', bullets());
+    let buttons = [...$('#trivia-answers').children];
+    assert(buttons.length === 4, `${buttons.length} answers`);
+    assert(buttons.some((b) => b.textContent.includes('[last]')), 'bracket answer missing');
+    assert(!shown('#trivia-next'), 'next shown before answering');
+    const correct1 = buttons.findIndex((b) => b.textContent.endsWith('First item'));
+    buttons[correct1].click();
+    assert(text('#trivia-feedback') === TEXT.trivia.correct, text('#trivia-feedback'));
+    assert(buttons[correct1].classList.contains('correct'));
+    assert(buttons[correct1].querySelector('.bullet-hole'), 'no bullet hole where clicked');
+    assert(buttons.every((b) => b.disabled), 'answers still enabled');
+    assert(shown('#trivia-next') && text('#trivia-next') === TEXT.trivia.next);
+    assert(JSON.stringify(bullets()) === '["hit","empty","empty"]', bullets());
+
+    // Answering again must not change anything.
+    buttons[(correct1 + 1) % 4].click();
+    pressKey(String(((correct1 + 1) % 4) + 1));
+    assert(!buttons.some((b) => b.classList.contains('wrong')), 'second answer accepted');
+
+    // Question 2: answer wrongly with the keyboard.
+    $('#trivia-next').click();
+    assert(text('#trivia-progress') === TEXT.trivia.progress(2, 3));
+    assert(JSON.stringify(bullets()) === '["hit","current","empty"]', bullets());
+    assert(text('#trivia-feedback') === '' && !shown('#trivia-next'), 'previous feedback not cleared');
+    buttons = [...$('#trivia-answers').children];
+    const correct2 = buttons.findIndex((b) => b.textContent.endsWith('B'));
+    const wrong2 = (correct2 + 1) % 4;
+    pressKey('9'); // out of range: ignored
+    assert(!buttons[0].disabled, 'out-of-range key answered');
+    pressKey(String(wrong2 + 1));
+    assert(buttons[wrong2].classList.contains('wrong'), 'wrong answer not marked');
+    assert(buttons[correct2].classList.contains('correct'), 'correct answer not revealed');
+    assert(text('#trivia-feedback') === `${TEXT.trivia.wrongPrefix}B`.trim(), text('#trivia-feedback'));
+    assert(buttons[wrong2].querySelector('.bullet-hole'), 'no bullet hole for keyboard answer');
+    assert(JSON.stringify(bullets()) === '["hit","miss","empty"]', bullets());
+
+    // Question 3: correct, then see score.
+    $('#trivia-next').click();
+    buttons = [...$('#trivia-answers').children];
+    buttons.find((b) => b.textContent.endsWith('Yes')).click();
+    assert(text('#trivia-next') === TEXT.trivia.last, text('#trivia-next'));
+    $('#trivia-next').click();
+
+    assert(shown('#trivia-result') && !shown('#trivia-play'), 'result not shown');
+    assert(text('#trivia-score') === '2 / 3', text('#trivia-score'));
+    assert(text('#trivia-message') === `66% · ${gradeText(66)}`, text('#trivia-message'));
+    assert($('#trivia-score').classList.contains('ok'));
+  });
+
+  await test('trivia: play again returns to setup with previous choices kept', async () => {
+    $('#trivia-again').click();
+    assert(shown('#trivia-setup') && !shown('#trivia-result'));
+    assert($('#trivia-amount').value === '3' && $('#trivia-difficulty').value === 'hard');
+  });
+
+  await test('trivia: quitting before answering shows "No questions answered"', async () => {
+    await withFetch(win, async () => jsonResponse({ response_code: 0, results: [triviaItem('Q?', 'A', ['B', 'C', 'D'])] }), async () => {
+      submit('#trivia-setup');
+      await waitFor(() => shown('#trivia-play'), 'quiz started');
+    });
+    $('#trivia-quit').click();
+    assert(shown('#trivia-result'));
+    assert(text('#trivia-message') === TEXT.trivia.noAnswers, text('#trivia-message'));
+    pressKey('1'); // no quiz running: must not throw or change anything
+    assert(shown('#trivia-result'));
+  });
+
+  await test('trivia: quitting midway scores only answered questions', async () => {
+    $('#trivia-again').click();
+    const items = [triviaItem('Q1?', 'A', ['B', 'C', 'D']), triviaItem('Q2?', 'A', ['B', 'C', 'D'])];
+    await withFetch(win, async () => jsonResponse({ response_code: 0, results: items }), async () => {
+      submit('#trivia-setup');
+      await waitFor(() => shown('#trivia-play'), 'quiz started');
+    });
+    [...$('#trivia-answers').children].find((b) => b.textContent.endsWith('A')).click();
+    $('#trivia-quit').click();
+    assert(text('#trivia-score') === '1 / 1' && text('#trivia-message') === `100% · ${gradeText(100)}`, text('#trivia-message'));
+  });
+
+  await test('trivia: number keys do nothing on other views', async () => {
+    $('#trivia-again').click();
+    await withFetch(win, async () => jsonResponse({ response_code: 0, results: [triviaItem('Q?', 'A', ['B', 'C', 'D'])] }), async () => {
+      submit('#trivia-setup');
+      await waitFor(() => shown('#trivia-play'), 'quiz started');
+    });
+    await go('joke');
+    pressKey('1');
+    await go('trivia');
+    assert(![...$('#trivia-answers').children].some((b) => b.disabled), 'answered from another view');
+    assert(text('#trivia-progress') === TEXT.trivia.progress(1, 1), 'quiz state lost when switching views');
+    $('#trivia-quit').click();
+    $('#trivia-again').click();
+  });
+
+  // --- Phone width ----------------------------------------------------------------
+  await test('no sideways scrolling at 360px wide on any view', async () => {
+    frame.style.width = '360px';
+    try {
+      // Fill each view with content first so the widest state is measured.
+      await withFetch(win, async (url) => url.includes('opentdb')
+        ? jsonResponse({ response_code: 0, results: [triviaItem('A fairly long question to see how it wraps on a small phone screen?', 'Answer', ['Another answer', 'Something else', 'Last'], 'medium', 'Entertainment: Cartoon & Animations')] })
+        : jsonResponse([{ meanings: [{ definitions: [{ definition: 'A definition long enough to wrap onto several lines on a phone.' }] }] }]),
+      async () => {
+        await go('define');
+        setInput('#define-input', 'serendipity');
+        submit('#define-form');
+        await waitFor(() => shown('#define-card'), 'definition');
+        await go('trivia');
+        submit('#trivia-setup');
+        await waitFor(() => shown('#trivia-play'), 'quiz');
+      });
+      for (const view of ['home', 'joke', 'define', 'trivia']) {
+        await go(view);
+        const root = doc.documentElement;
+        assert(root.scrollWidth <= root.clientWidth, `${view}: page is ${root.scrollWidth}px wide in a ${root.clientWidth}px window`);
+        if (view === 'define') {
+          const button = $('#define-button').getBoundingClientRect();
+          assert(button.width > 0 && button.right <= root.clientWidth, 'Define button off screen');
+        }
+      }
+    } finally {
+      $('#trivia-quit').click();
+      $('#trivia-again').click();
+      frame.style.width = '800px';
+    }
+  });
+
+  // --- Live services, end to end ------------------------------------------------
+  await test('LIVE joke through the page', async () => {
+    await go('joke');
+    $('#joke-button').click();
+    await waitFor(() => !$('#joke-button').disabled, 'joke finished', 30000);
+    assert(shown('#joke-card') && text('#joke-text').length > 0, text('#joke-status'));
+    info(`live joke shown${shown('#joke-punchline') ? ' with punchline' : ''}`);
+  });
+
+  await test('LIVE define "apple" through the page', async () => {
+    await go('define');
+    setInput('#define-input', 'apple');
+    submit('#define-form');
+    await waitFor(() => !$('#define-button').disabled, 'lookup finished', 30000);
+    assert(shown('#define-card') && /fruit/i.test(text('#define-text')), text('#define-status') || text('#define-text'));
+  });
+
+  await test('LIVE 2-question trivia through the page', async () => {
+    await go('trivia');
+    setInput('#trivia-amount', '2');
+    $('#trivia-difficulty').value = '';
+    submit('#trivia-setup');
+    await waitFor(() => shown('#trivia-play') || $('#trivia-status').classList.contains('status-error'), 'quiz or error', 30000);
+    assert(shown('#trivia-play'), text('#trivia-status'));
+    info(`live question: ${text('#trivia-question')}`);
+    pressKey('1');
+    $('#trivia-next').click();
+    pressKey('2');
+    $('#trivia-next').click();
+    assert(shown('#trivia-result') && /^[0-2] \/ 2$/.test(text('#trivia-score')), text('#trivia-score'));
+    info(`live score: ${text('#trivia-score')}`);
+  });
+
+  finish();
+</script>
+</body>
+</html>

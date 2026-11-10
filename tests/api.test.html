@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>API tests</title>
+</head>
+<body>
+<pre id="results">running...</pre>
+<script type="module">
+  import { test, info, assert, rejectsWithAPIError, withFetch, jsonResponse, finish } from './harness.js';
+  import { getJoke, getDefinition, getTriviaQuestions } from '../site/js/api.js';
+
+  const fail = () => { throw new Error('fetch should not have been called'); };
+  const offline = () => Promise.reject(new TypeError('Failed to fetch'));
+
+  // --- Stubbed responses (no network) --------------------------------------
+  await test('joke: network failure gives friendly error', () =>
+    withFetch(window, offline, () => rejectsWithAPIError(getJoke(), /telegraph line to the joke teller is down/)));
+
+  await test('joke: service error flag is reported', () =>
+    withFetch(window, async () => jsonResponse({ error: true, message: 'No matching joke found' }, 400),
+      () => rejectsWithAPIError(getJoke(), /tongue-tied: No matching joke found/)));
+
+  await test('joke: two-part joke is split into text and punchline', () =>
+    withFetch(window, async () => jsonResponse({ type: 'twopart', setup: 'S', delivery: 'P' }), async () => {
+      const joke = await getJoke();
+      assert(joke.text === 'S' && joke.punchline === 'P', JSON.stringify(joke));
+    }));
+
+  await test('joke: single joke has null punchline', () =>
+    withFetch(window, async () => jsonResponse({ type: 'single', joke: 'J' }), async () => {
+      const joke = await getJoke();
+      assert(joke.text === 'J' && joke.punchline === null, JSON.stringify(joke));
+    }));
+
+  await test('joke: unexpected JSON shape', () =>
+    withFetch(window, async () => jsonResponse({ hello: 1 }),
+      () => rejectsWithAPIError(getJoke(), /garbled telegram/)));
+
+  await test('define: blank word rejected without a request', () =>
+    withFetch(window, fail, () => rejectsWithAPIError(getDefinition('   '), /give me a word/)));
+
+  await test('define: server error status reported', () =>
+    withFetch(window, async () => jsonResponse({}, 502),
+      () => rejectsWithAPIError(getDefinition('x'), /status 502/)));
+
+  await test('define: empty result list is unexpected', () =>
+    withFetch(window, async () => jsonResponse([]),
+      () => rejectsWithAPIError(getDefinition('x'), /garbled telegram/)));
+
+  await test('define: word is URL-encoded', () => {
+    let requested = '';
+    return withFetch(window, async (url) => { requested = url; return jsonResponse([{ meanings: [{ definitions: [{ definition: 'd' }] }] }]); },
+      async () => {
+        await getDefinition('ice cream?');
+        assert(requested.endsWith('ice%20cream%3F'), requested);
+      });
+  });
+
+  await test('trivia: not enough questions (code 1)', () =>
+    withFetch(window, async () => jsonResponse({ response_code: 1, results: [] }),
+      () => rejectsWithAPIError(getTriviaQuestions(50), /ain't got that many questions/)));
+
+  await test('trivia: rate limit (code 5)', () =>
+    withFetch(window, async () => jsonResponse({ response_code: 5, results: [] }, 429),
+      () => rejectsWithAPIError(getTriviaQuestions(), /one request every 5 seconds/)));
+
+  await test('trivia: non-JSON body is unexpected', () =>
+    withFetch(window, async () => new Response('<html>oops</html>', { status: 200 }),
+      () => rejectsWithAPIError(getTriviaQuestions(), /garbled telegram/)));
+
+  await test('trivia: text is decoded and answers shuffled but complete', () =>
+    withFetch(window, async (url) => {
+      assert(url.includes('encode=url3986') && url.includes('difficulty=hard') && url.includes('amount=2'), url);
+      const item = { category: 'Science%3A%20Computers', difficulty: 'hard',
+        question: 'What%20does%20arr%5B0%5D%20return%3F', correct_answer: 'First%20item',
+        incorrect_answers: ['%5Blast%5D', 'None', 'Error'] };
+      return jsonResponse({ response_code: 0, results: [item, item] });
+    }, async () => {
+      const [q] = await getTriviaQuestions(2, 'hard');
+      assert(q.question === 'What does arr[0] return?', q.question);
+      assert(q.category === 'Science: Computers', q.category);
+      assert(q.answers.length === 4 && q.answers.includes('First item') && q.answers.includes('[last]'), q.answers);
+      assert(q.correct === 'First item', q.correct);
+    }));
+
+  // --- Live services ----------------------------------------------------------
+  await test('LIVE joke', async () => {
+    const joke = await getJoke();
+    assert(typeof joke.text === 'string' && joke.text.length > 0, 'empty joke');
+    info(`joke type: ${joke.punchline === null ? 'single' : 'twopart'}`);
+  });
+
+  await test('LIVE define hello', async () => {
+    const definition = await getDefinition('hello');
+    assert(/greeting/i.test(definition), definition);
+  });
+
+  await test('LIVE define unknown word gives APIError', async () => {
+    const error = await rejectsWithAPIError(getDefinition('qwzxv'));
+    info(`unknown word message: ${error.message}`);
+  });
+
+  await test('LIVE trivia 3 easy', async () => {
+    const questions = await getTriviaQuestions(3, 'easy');
+    assert(questions.length === 3, `got ${questions.length}`);
+    for (const q of questions) {
+      assert(q.difficulty === 'easy', q.difficulty);
+      assert(q.answers.length === 4 && q.answers.includes(q.correct), JSON.stringify(q));
+      assert(!/%[0-9A-F]{2}/.test(q.question), `not decoded: ${q.question}`);
+    }
+    info(`sample question: ${questions[0].question}`);
+  });
+
+  await test('LIVE trivia straight after is rate-limited', () =>
+    rejectsWithAPIError(getTriviaQuestions(1), /one request every 5 seconds/));
+
+  finish();
+</script>
+</body>
+</html>

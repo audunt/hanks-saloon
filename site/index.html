@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Hank's Saloon: tall tales, frontier lingo and trivia showdowns. Pull up a stool, partner.">
+  <meta name="theme-color" content="#2b1a0e">
+  <title>Hank's Saloon</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,400;0,600;0,700;1,400&family=Rye&family=Special+Elite&display=swap">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <!-- Shared artwork, referenced below with <use href="#..."> -->
+  <svg class="sprite" width="0" height="0" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="brass-gradient" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#f6d27a"/>
+        <stop offset=".55" stop-color="#d4a23c"/>
+        <stop offset="1" stop-color="#8f6519"/>
+      </linearGradient>
+
+      <symbol id="hat" viewBox="0 0 64 40">
+        <path fill="currentColor" d="M20 24C20 12 24 4 28 4c2 0 3 3 4 3s2-3 4-3c4 0 8 8 8 20Z"/>
+        <path fill="currentColor" d="M4 22c5 5 12 8 28 8s23-3 28-8c-2 8-12 13-28 13S6 30 4 22Z"/>
+        <path fill="#a63d23" d="M20 19h24v5H20Z"/>
+      </symbol>
+
+      <symbol id="logo" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="48" fill="url(#brass-gradient)" stroke="#5b3a1e" stroke-width="2"/>
+        <circle cx="50" cy="50" r="42.5" fill="none" stroke="#5b3a1e" stroke-width="2.5" stroke-dasharray="4 3"/>
+        <circle cx="50" cy="50" r="37" fill="#2b1a0e"/>
+        <use href="#hat" x="19" y="24" width="62" height="38.75" color="#f3e6c8"/>
+        <path fill="url(#brass-gradient)" transform="translate(50 73)"
+              d="M0-5 1.2-1.6 4.8-1.5 1.9.6 2.9 4 0 2-2.9 4-1.9.6-4.8-1.5-1.2-1.6Z"/>
+      </symbol>
+
+      <symbol id="cactus" viewBox="0 0 40 80">
+        <rect x="14" y="4" width="12" height="76" rx="6"/>
+        <rect x="2" y="22" width="9" height="26" rx="4.5"/>
+        <rect x="2" y="40" width="16" height="9" rx="4.5"/>
+        <rect x="29" y="14" width="9" height="24" rx="4.5"/>
+        <rect x="22" y="30" width="16" height="9" rx="4.5"/>
+      </symbol>
+
+      <symbol id="sheriff-star" viewBox="0 0 100 100">
+        <polygon fill="url(#brass-gradient)" stroke="#8f6519" stroke-width="1.5"
+                 points="50,4 62,29.2 89.8,27 74,50 89.8,73 62,70.8 50,96 38,70.8 10.2,73 26,50 10.2,27 38,29.2"/>
+        <g fill="url(#brass-gradient)" stroke="#8f6519" stroke-width="1.5">
+          <circle cx="50" cy="5" r="4.5"/><circle cx="89" cy="27.5" r="4.5"/><circle cx="89" cy="72.5" r="4.5"/>
+          <circle cx="50" cy="95" r="4.5"/><circle cx="11" cy="72.5" r="4.5"/><circle cx="11" cy="27.5" r="4.5"/>
+        </g>
+        <circle cx="50" cy="50" r="22" fill="none" stroke="#8f6519" stroke-width="1.5" stroke-dasharray="3 2"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#home" aria-label="Hank's Saloon – home">
+        <svg class="logo" aria-hidden="true"><use href="#logo"/></svg>
+        <span class="brand-name">Hank's Saloon</span>
+      </a>
+      <nav aria-label="Activities">
+        <ul>
+          <li><a href="#home">Saloon</a></li>
+          <li><a href="#joke">Tall Tales</a></li>
+          <li><a href="#define">Lingo</a></li>
+          <li><a href="#trivia">Showdown</a></li>
+        </ul>
+      </nav>
+    </div>
+    <div class="scroll-progress" aria-hidden="true"></div>
+  </header>
+
+  <main id="main">
+    <noscript><p class="container status status-error">Hank needs JavaScript turned on to talk to the outside world.</p></noscript>
+
+    <!-- Saloon (home) -->
+    <section id="view-home" class="view" aria-labelledby="home-heading">
+      <div class="hero">
+        <svg class="scene" viewBox="0 0 1200 500" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">
+          <g class="layer" data-depth="0.5">
+            <circle class="twinkle" cx="90" cy="60" r="1.6"/><circle class="twinkle" cx="210" cy="120" r="1.2"/>
+            <circle class="twinkle" cx="330" cy="40" r="1.8"/><circle class="twinkle" cx="470" cy="95" r="1.1"/>
+            <circle class="twinkle" cx="580" cy="30" r="1.5"/><circle class="twinkle" cx="690" cy="110" r="1.2"/>
+            <circle class="twinkle" cx="770" cy="55" r="1.7"/><circle class="twinkle" cx="940" cy="80" r="1.3"/>
+            <circle class="twinkle" cx="1050" cy="35" r="1.6"/><circle class="twinkle" cx="1150" cy="120" r="1.2"/>
+            <circle class="twinkle" cx="40" cy="160" r="1"/><circle class="twinkle" cx="1110" cy="190" r="1"/>
+          </g>
+          <g class="layer" data-depth="0.4">
+            <circle cx="790" cy="335" r="170" fill="#f7c25a" opacity=".18"/>
+            <circle cx="790" cy="335" r="110" fill="#f7c25a" opacity=".95"/>
+          </g>
+          <g class="layer" data-depth="0.28">
+            <path fill="#9c4a2f" d="M0 362h80l30-42h150l30 40h130l40-62 60-4 40 34 140 10 60-50h140l40 54 140 10 30-40 90-5v205H0Z"/>
+          </g>
+          <g class="layer" data-depth="0.16">
+            <path fill="#6e2e1b" d="M0 400c150-30 260-10 380-20 140-12 260 20 400 10 140-10 260-30 420-5v115H0Z"/>
+          </g>
+          <g class="layer" data-depth="0.05" fill="#2b160b">
+            <path d="M0 440c200-20 400 5 600-5s400 10 600-5v70H0Z"/>
+            <!-- Saloon silhouette with lit windows -->
+            <path d="M250 442v-82h12v-30h38v-12h100v12h38v30h12v82Z"/>
+            <path d="M238 372h224v8H238Z"/>
+            <rect x="275" y="344" width="20" height="14" fill="#f2a65a" opacity=".75"/>
+            <rect x="405" y="344" width="20" height="14" fill="#f2a65a" opacity=".75"/>
+            <rect x="334" y="396" width="32" height="46" fill="#f2a65a" opacity=".8"/>
+            <use href="#cactus" x="110" y="338" width="52" height="104"/>
+            <use href="#cactus" x="1010" y="322" width="62" height="124"/>
+            <use href="#cactus" x="950" y="384" width="30" height="60"/>
+            <use href="#cactus" x="560" y="400" width="24" height="44"/>
+          </g>
+        </svg>
+        <div class="hero-content container">
+          <svg class="hero-logo" aria-hidden="true"><use href="#logo"/></svg>
+          <h1 id="home-heading" class="hero-title">Hank's Saloon</h1>
+          <p class="tagline">Tall tales, frontier lingo &amp; trivia showdowns since 1881.<br>Pull up a stool, partner.</p>
+          <button type="button" class="hero-cta" data-scroll-to="entertainment">See what's on tonight</button>
+        </div>
+      </div>
+
+      <div class="container">
+        <h2 id="entertainment" class="section-title reveal">Tonight's Entertainment</h2>
+        <ul class="activities posters">
+          <li class="reveal">
+            <a class="poster" href="#joke">
+              <span class="poster-wanted">Wanted</span>
+              <strong class="poster-title">Tall Tales</strong>
+              <span class="poster-desc">Hank's finest jokes, told fresh off the stagecoach</span>
+              <span class="poster-reward">Reward: one hearty chuckle</span>
+            </a>
+          </li>
+          <li class="reveal">
+            <a class="poster" href="#define">
+              <span class="poster-wanted">Wanted</span>
+              <strong class="poster-title">Frontier Lingo</strong>
+              <span class="poster-desc">Lasso any word and learn its meanin'</span>
+              <span class="poster-reward">Reward: a sharper tongue</span>
+            </a>
+          </li>
+          <li class="reveal">
+            <a class="poster" href="#trivia">
+              <span class="poster-wanted">Wanted</span>
+              <strong class="poster-title">Trivia Showdown</strong>
+              <span class="poster-desc">Duel the trivia master in a battle of wits</span>
+              <span class="poster-reward">Reward: braggin' rights</span>
+            </a>
+          </li>
+        </ul>
+
+        <h2 class="section-title reveal">House Rules</h2>
+        <ol class="rules reveal">
+          <li>No spurs on the furniture.</li>
+          <li>Hank tells the jokes, and Hank don't vet 'em. Some are rougher than a cattle drive.</li>
+          <li>In a showdown, press <kbd>1</kbd>–<kbd>4</kbd> to draw quicker.</li>
+          <li>The trivia master needs 5 seconds between games. Don't rush him.</li>
+          <li>Every word lookup's on the house.</li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- Tall Tales (joke) -->
+    <section id="view-joke" class="view container narrow" aria-labelledby="joke-heading" hidden>
+      <h1 id="joke-heading" class="view-title">Tall Tales</h1>
+      <p class="lead">Hank's got a yarn for every occasion. Most of 'em are even funny.</p>
+      <button id="joke-button" type="button">Spin me a yarn</button>
+      <p id="joke-status" class="status" role="status"></p>
+      <div id="joke-card" class="card joke-card" hidden>
+        <p id="joke-text" class="joke-text"></p>
+        <p id="joke-punchline" class="punchline" hidden></p>
+      </div>
+    </section>
+
+    <!-- Frontier Lingo (define) -->
+    <section id="view-define" class="view container narrow" aria-labelledby="define-heading" hidden>
+      <h1 id="define-heading" class="view-title">Frontier Lingo</h1>
+      <p class="lead">Lasso a word and Hank'll wire ya what it means.</p>
+      <form id="define-form" class="row" novalidate>
+        <label class="grow">Word
+          <input id="define-input" type="text" name="word" autocomplete="off" spellcheck="false" placeholder="e.g. varmint">
+        </label>
+        <button id="define-button" type="submit">Wrangle it</button>
+      </form>
+      <p id="define-status" class="status" role="status"></p>
+      <div id="define-card" class="card telegram" hidden>
+        <p class="telegram-header" aria-hidden="true"><span>Telegram</span><span>Hank's Saloon</span></p>
+        <h2 id="define-word" class="definition-word"></h2>
+        <p id="define-text" class="definition"></p>
+      </div>
+    </section>
+
+    <!-- Trivia Showdown -->
+    <section id="view-trivia" class="view container narrow" aria-labelledby="trivia-heading" hidden>
+      <h1 id="trivia-heading" class="view-title">Trivia Showdown</h1>
+      <p class="lead">The six-shooter's loaded with questions from the Open Trivia Database. Step into the street, partner.</p>
+
+      <form id="trivia-setup" class="card" novalidate>
+        <div class="row">
+          <label>Rounds
+            <input id="trivia-amount" type="number" min="1" max="20" value="5" inputmode="numeric">
+          </label>
+          <label class="grow">Grit
+            <select id="trivia-difficulty">
+              <option value="">Any ol' grit</option>
+              <option value="easy">Greenhorn (easy)</option>
+              <option value="medium">Wrangler (medium)</option>
+              <option value="hard">Gunslinger (hard)</option>
+            </select>
+          </label>
+          <button id="trivia-start" type="submit">Draw!</button>
+        </div>
+        <p id="trivia-status" class="status" role="status"></p>
+      </form>
+
+      <div id="trivia-play" class="card" hidden>
+        <div class="meta">
+          <span id="trivia-progress"></span>
+          <span><span id="trivia-category"></span> · <span id="trivia-badge" class="badge"></span></span>
+        </div>
+        <div id="trivia-bullets" class="bullets" aria-hidden="true"></div>
+        <p id="trivia-question" class="question"></p>
+        <div id="trivia-answers" class="answers"></div>
+        <p id="trivia-feedback" class="feedback" role="status"></p>
+        <div class="actions">
+          <button id="trivia-quit" type="button" class="secondary">Holster up</button>
+          <button id="trivia-next" type="button" hidden>Next round</button>
+        </div>
+        <p class="hint">Quick draw: press <kbd>1</kbd>–<kbd>4</kbd> to answer.</p>
+      </div>
+
+      <div id="trivia-result" class="card result" hidden>
+        <h2>The Final Tally</h2>
+        <div class="star-badge">
+          <svg class="star" aria-hidden="true"><use href="#sheriff-star"/></svg>
+          <p id="trivia-score" class="score"></p>
+        </div>
+        <p id="trivia-message" class="result-message"></p>
+        <button id="trivia-again" type="button">Saddle up again</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container reveal">
+      <svg class="footer-logo" aria-hidden="true"><use href="#logo"/></svg>
+      <p class="footer-motto">Hank's Saloon · Est. 1881 · Mind your manners</p>
+      <p class="footer-credits">
+        Yarns from <a href="https://v2.jokeapi.dev/">JokeAPI</a> ·
+        lingo from the <a href="https://dictionaryapi.dev/">Free Dictionary API</a> ·
+        showdown questions from the <a href="https://opentdb.com/">Open Trivia Database</a>
+      </p>
+    </div>
+  </footer>
+</body>
+</html>
