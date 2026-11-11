@@ -63,4 +63,29 @@ export const TEXT = {
     wonTitle: 'Saved by a word',
     lostTitle: 'Too late, partner',
   },
+
+  quickdraw: {
+    reload: 'Reload',
+    holster: 'Holster',
+    timer: (seconds) => `${seconds.toFixed(2)} s`,
+    bottles: (hits, total) => `Bottles: ${hits} / ${total}`,
+    status: {
+      ready: 'Rest yer hand on the holster to get ready.',
+      holstered: 'Steady… the clock starts when yer hand leaves the holster.',
+      drawn: (left) => `Fire! ${left} shot${left === 1 ? '' : 's'} left.`,
+      done: 'Holster up, partner.',
+    },
+    result: (hits, seconds) => `${hits} of 6 bottles in ${seconds.toFixed(2)} s`,
+    // First match wins: [minimum hits, under this many seconds (or Infinity), title]
+    ranks: [
+      [6, 2.5, 'Fastest gun in the West!'],
+      [6, 4, 'Sharpshooter!'],
+      [6, Infinity, 'Six for six. Steady hand, partner.'],
+      [4, Infinity, 'Not bad, cowpoke.'],
+      [1, Infinity, "Them bottles are laughin' at ya."],
+      [0, Infinity, "Couldn't hit the broad side of a barn!"],
+    ],
+    record: (hits, seconds) => `Saloon record: ${hits} of 6 in ${seconds.toFixed(2)} s`,
+    newRecord: 'A new saloon record!',
+  },
 };

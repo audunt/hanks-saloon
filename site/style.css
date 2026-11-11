@@ -211,6 +211,7 @@ main { overflow-x: clip; padding-bottom: 3rem; }
 .motion .posters .reveal:nth-child(2) { transition-delay: 0.12s; }
 .motion .posters .reveal:nth-child(3) { transition-delay: 0.24s; }
 .motion .posters .reveal:nth-child(4) { transition-delay: 0.36s; }
+.motion .posters .reveal:nth-child(5) { transition-delay: 0.48s; }
 
 /* --- Hero: sunset over town ------------------------------------------------- */
 
@@ -369,20 +370,26 @@ button.secondary {
   color: var(--brass);
 }
 
+/* Posters wrap in centred rows (five posters: 3 + 2 on wide screens, 2 + 2 + 1 on tablets). */
 .activities {
-  display: grid;
-  gap: 2rem;
+  --gap: 2rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--gap);
   margin: 0;
   padding: 0.5rem 0.5rem 1rem;
   list-style: none;
 }
+.activities > li { flex: 1 1 100%; }
 
 @media (min-width: 640px) {
-  .activities { grid-template-columns: repeat(2, 1fr); }
+  .activities > li { flex: 0 1 calc((100% - var(--gap)) / 2); }
 }
 
 @media (min-width: 960px) {
-  .activities { grid-template-columns: repeat(4, 1fr); gap: 1.5rem; }
+  .activities { --gap: 1.75rem; }
+  .activities > li { flex: 0 1 calc((100% - 2 * var(--gap)) / 3); }
 }
 
 .poster {
@@ -410,6 +417,7 @@ button.secondary {
 .activities li:nth-child(2) .poster { --tilt: 1.5deg; }
 .activities li:nth-child(3) .poster { --tilt: -1deg; }
 .activities li:nth-child(4) .poster { --tilt: 2deg; }
+.activities li:nth-child(5) .poster { --tilt: -1.5deg; }
 
 .poster:hover,
 .poster:focus-visible {
@@ -999,6 +1007,95 @@ label {
 .hm-key.miss { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); box-shadow: none; text-decoration: line-through; }
 .hm-key:disabled:not(.hit):not(.miss) { opacity: 0.45; box-shadow: none; }
 
+/* --- Quick Draw ------------------------------------------------------------------ */
+
+.qd-hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+.qd-timer { min-width: 6ch; font: 1.6rem/1 var(--font-type); font-variant-numeric: tabular-nums; color: var(--ink); }
+.qd-hits { font-family: var(--font-display); color: var(--ink); }
+
+.qd-cylinder { width: 46px; height: 46px; flex: none; }
+.qd-chambers { transition: transform 0.12s ease-out; }
+.qd-cylinder-body { fill: #8a8378; stroke: #3b2412; stroke-width: 1.5; }
+.qd-chamber { fill: var(--brass); stroke: #3b2412; stroke-width: 1; }
+.qd-chamber.spent { fill: var(--wood-900); }
+.qd-cylinder-pin { fill: #3b2412; }
+
+.qd-range {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.3), var(--shadow);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+.qd-scene { display: block; width: 100%; height: auto; }
+.qd-range[data-phase="drawn"] {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Cg fill='none' stroke-width='4' stroke='%231a0f07'%3E%3Ccircle cx='16' cy='16' r='10'/%3E%3Cpath d='M16 1v9M16 22v9M1 16h9M22 16h9'/%3E%3C/g%3E%3Cg fill='none' stroke-width='2' stroke='%23f6d27a'%3E%3Ccircle cx='16' cy='16' r='10'/%3E%3Cpath d='M16 1v9M16 22v9M1 16h9M22 16h9'/%3E%3C/g%3E%3Ccircle cx='16' cy='16' r='1.8' fill='%23e04a2a'/%3E%3C/svg%3E") 16 16, crosshair;
+}
+.qd-effects { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+
+.qd-bottle { transform-box: fill-box; transform-origin: 50% 100%; transition: opacity 0.12s, transform 0.12s; }
+.qd-bottle.shattered { opacity: 0; transform: scale(0.5); pointer-events: none; }
+.qd-shard {
+  position: absolute;
+  width: 9px;
+  height: 12px;
+  clip-path: polygon(50% 0, 100% 100%, 0 70%);
+  pointer-events: none;
+}
+
+/* Every shot: a quick flash and kick */
+.qd-bang { animation: qd-bang 0.12s ease-out; }
+@keyframes qd-bang {
+  from { filter: brightness(1.6); transform: translate(2px, -2px); }
+  to { filter: none; transform: none; }
+}
+
+.qd-holster {
+  position: absolute;
+  right: 3%;
+  bottom: 4%;
+  width: 12%; /* scales with the range, so it never covers the bottles */
+  min-width: 40px;
+  max-width: 76px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.35rem 0.25rem 0.3rem;
+  border: 2px dashed rgb(214 176 122 / 0.55);
+  border-radius: 10px;
+  background: rgb(0 0 0 / 0.28);
+  touch-action: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+.qd-holster svg { display: block; width: 100%; height: auto; }
+.qd-holster-label { margin-top: 0.2rem; font: 0.75rem/1 var(--font-display); letter-spacing: 0.05em; color: var(--parchment); }
+.qd-gun { transition: opacity 0.08s; }
+
+.qd-range[data-phase="ready"] .qd-holster { animation: qd-beckon 1.6s ease-in-out infinite; }
+@keyframes qd-beckon { 50% { border-color: var(--brass-light); } }
+.qd-range[data-phase="holstered"] .qd-holster {
+  border-style: solid;
+  border-color: var(--brass-light);
+  background: rgb(246 210 122 / 0.14);
+  box-shadow: 0 0 18px rgb(246 210 122 / 0.55);
+}
+.qd-range:is([data-phase="drawn"], [data-phase="done"]) .qd-gun { opacity: 0; } /* the gun's been drawn */
+
+.qd-status { margin: 1rem 0 0; min-height: 1.6em; font-style: italic; text-align: center; color: var(--ink); }
+.qd-result { margin-top: 0.75rem; text-align: center; animation: card-in 0.5s var(--ease-out); }
+.qd-card .qd-rank { margin: 0; font: 1.5rem/1.2 var(--font-display); color: var(--rust); }
+.qd-score { margin: 0.4rem 0 0; font: 1.25rem/1.4 var(--font-type); color: var(--ink); }
+.qd-record { margin: 0.3rem 0 0; font-size: 0.95rem; color: var(--ink-muted); }
+.qd-card .actions { justify-content: center; }
+
 /* Hats tossed in the air */
 .hat-toss {
   position: fixed;
@@ -1164,6 +1261,8 @@ label {
 @media (max-width: 520px) {
   body { font-size: 16px; }
   .hm-telegram { padding: 1rem; }
+  .qd-holster { padding: 0.25rem 0.15rem; }
+  .qd-holster-label { display: none; }
   .hm-telegram .hm-telegram-title { font-size: 1.2rem; }
   .card { padding: 1.25rem 1rem; }
   .joke-card { padding: 1.75rem 1.25rem 1.5rem 3rem; }

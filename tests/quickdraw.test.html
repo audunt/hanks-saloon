@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Quick Draw tests</title>
+</head>
+<body>
+<pre id="results">running...</pre>
+<script type="module">
+  import { test, assert, finish } from './harness.js';
+  import { SHOTS, BOTTLES, newRound, holster, draw, shoot, elapsed, isBetter } from '../site/js/quickdraw.js';
+  import { TEXT } from '../site/js/copy.js';
+
+  const drawn = (at = 1000) => draw(holster(newRound()), at);
+  const fire = (round, shots) => shots.reduce((r, [time, bottle]) => shoot(r, time, bottle).round, round);
+
+  await test('six shots, six bottles', () => {
+    assert(SHOTS === 6 && BOTTLES === 6, `${SHOTS} shots, ${BOTTLES} bottles`);
+  });
+
+  await test('a round goes ready → holstered → drawn, and the clock starts at the draw', () => {
+    let round = newRound();
+    assert(round.phase === 'ready' && elapsed(round, 5000) === 0, JSON.stringify(round));
+    assert(draw(round, 100) === round, 'drew without holstering first');
+    round = holster(round);
+    assert(round.phase === 'holstered' && elapsed(round, 5000) === 0, round.phase);
+    round = draw(round, 1000);
+    assert(round.phase === 'drawn' && round.startedAt === 1000, JSON.stringify(round));
+    assert(elapsed(round, 1750) === 750, `elapsed ${elapsed(round, 1750)}`);
+    assert(holster(round) === round && draw(round, 2000) === round, 'phase changed after the draw');
+  });
+
+  await test('shots before the draw are ignored', () => {
+    for (const round of [newRound(), holster(newRound())]) {
+      const { round: after, result } = shoot(round, 500, 0);
+      assert(result === 'ignored' && after === round, `${round.phase}: ${result}`);
+    }
+  });
+
+  await test('hits and misses both use a shot; a bottle can only break once', () => {
+    let { round, result } = shoot(drawn(), 1100, 2);
+    assert(result === 'hit' && round.shots === 1 && JSON.stringify(round.hits) === '[2]', JSON.stringify(round));
+    ({ round, result } = shoot(round, 1200, null));
+    assert(result === 'miss' && round.shots === 2 && round.hits.length === 1, JSON.stringify(round));
+    ({ round, result } = shoot(round, 1300, 2));
+    assert(result === 'miss' && round.hits.length === 1, 'broke the same bottle twice');
+    for (const bottle of [-1, 6, 2.5, '3']) {
+      assert(shoot(round, 1400, bottle).result === 'miss', `bottle ${bottle} counted as a hit`);
+    }
+  });
+
+  await test('the sixth shot ends the round and stops the clock', () => {
+    const round = fire(drawn(1000), [[1200, 0], [1400, 1], [1600, null], [1800, 3], [2000, 4], [2340, 5]]);
+    assert(round.phase === 'done' && round.shots === 6 && round.hits.length === 5, JSON.stringify(round));
+    assert(elapsed(round, 99999) === 1340, `clock not stopped: ${elapsed(round, 99999)}`);
+    assert(shoot(round, 2500, 2).result === 'ignored', 'a seventh shot was fired');
+  });
+
+  await test('the original round is never changed', () => {
+    const start = drawn();
+    shoot(start, 1100, 0);
+    assert(start.shots === 0 && start.hits.length === 0, JSON.stringify(start));
+  });
+
+  await test('records: more bottles beats faster; equal bottles, faster wins', () => {
+    assert(isBetter({ hits: 3, ms: 9000 }, null), 'first result is not a record');
+    assert(isBetter({ hits: 6, ms: 5000 }, { hits: 5, ms: 1000 }), 'more bottles should win');
+    assert(!isBetter({ hits: 5, ms: 1000 }, { hits: 6, ms: 5000 }), 'fewer bottles should lose');
+    assert(isBetter({ hits: 6, ms: 2000 }, { hits: 6, ms: 2100 }), 'faster should win');
+    assert(!isBetter({ hits: 6, ms: 2100 }, { hits: 6, ms: 2100 }), 'a tie is not a new record');
+  });
+
+  await test('every result gets a rank title', () => {
+    const rank = (hits, seconds) => TEXT.quickdraw.ranks.find(([min, under]) => hits >= min && seconds < under)?.[2];
+    assert(rank(6, 2) === 'Fastest gun in the West!', rank(6, 2));
+    assert(rank(6, 3) === 'Sharpshooter!', rank(6, 3));
+    for (let hits = 0; hits <= 6; hits++) {
+      for (const seconds of [0.5, 3, 10, 600]) assert(rank(hits, seconds), `no rank for ${hits} in ${seconds} s`);
+    }
+  });
+
+  finish();
+</script>
+</body>
+</html>

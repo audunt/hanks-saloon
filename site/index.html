@@ -84,6 +84,14 @@
         <circle cx="69" cy="24" r="4" fill="currentColor"/>
       </symbol>
 
+      <symbol id="mug-quickdraw" viewBox="0 0 100 80">
+        <path d="M44 68V40q0-6 3-8v-9h6v9q3 2 3 8v28Z" fill="currentColor"/>
+        <g fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <circle cx="50" cy="44" r="25"/>
+          <path d="M50 12v12M50 64v12M18 44h12M70 44h12"/>
+        </g>
+      </symbol>
+
       <symbol id="mug-hangman" viewBox="0 0 100 80">
         <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
           <path d="M20 72h44M34 72V11h38M34 26l15-15" stroke-width="4"/>
@@ -148,7 +156,7 @@
         <div class="hero-content container">
           <svg class="hero-logo" aria-hidden="true"><use href="#logo"/></svg>
           <h1 id="home-heading" class="hero-title">Hank's Saloon</h1>
-          <p class="tagline">Tall tales, frontier lingo, trivia showdowns &amp; the odd hangin' since 1881.<br>Pull up a stool, partner.</p>
+          <p class="tagline">Tall tales, frontier lingo, trivia, quick draws &amp; the odd hangin' since 1881.<br>Pull up a stool, partner.</p>
           <button type="button" class="hero-cta" data-scroll-to="entertainment">See what's on tonight</button>
         </div>
       </div>
@@ -192,6 +200,15 @@
               <span class="poster-reward">Reward: one grateful cowboy</span>
             </a>
           </li>
+          <li class="reveal">
+            <a class="poster" href="#quickdraw">
+              <span class="poster-wanted">Wanted</span>
+              <span class="poster-mugshot" aria-hidden="true"><svg><use href="#mug-quickdraw"/></svg></span>
+              <strong class="poster-title">Quick Draw</strong>
+              <span class="poster-desc">Six shots, six bottles. How fast is yer draw?</span>
+              <span class="poster-reward">Reward: a reputation</span>
+            </a>
+          </li>
         </ul>
 
         <h2 class="section-title reveal">House Rules</h2>
@@ -202,6 +219,7 @@
           <li>The trivia master needs 5 seconds between games. Don't rush him.</li>
           <li>Every word lookup's on the house.</li>
           <li>On Hangman's Hill, six wrong guesses and the lever drops.</li>
+          <li>At the Quick Draw, the clock starts the moment yer hand leaves the holster.</li>
         </ol>
       </div>
     </section>
@@ -405,6 +423,69 @@
           <button id="hm-new" type="button">Another word</button>
         </div>
         <p class="hint">Type letters on yer keyboard or tap the keys.</p>
+      </div>
+    </section>
+
+    <!-- Quick Draw -->
+    <section id="view-quickdraw" class="view container narrow" aria-labelledby="quickdraw-heading" hidden>
+      <a class="back-link" href="#home">← Back to the saloon</a>
+      <h1 id="quickdraw-heading" class="view-title">Quick Draw</h1>
+      <p class="lead">Six shots, six bottles. Rest yer hand on the holster, then draw and fire. The clock starts the moment yer hand leaves leather.</p>
+
+      <div class="card qd-card">
+        <div class="qd-hud">
+          <span id="qd-timer" class="qd-timer" role="timer">0.00 s</span>
+          <svg id="qd-cylinder" class="qd-cylinder" viewBox="-20 -20 40 40" aria-hidden="true"></svg>
+          <span id="qd-hits" class="qd-hits"></span>
+        </div>
+
+        <!-- data-phase: ready | holstered | drawn | done -->
+        <div id="qd-range" class="qd-range" data-phase="ready">
+          <svg class="qd-scene" viewBox="0 0 400 240" aria-hidden="true" focusable="false">
+            <defs>
+              <pattern id="qd-planks" width="40" height="240" patternUnits="userSpaceOnUse">
+                <rect width="40" height="240" fill="#4a2c17"/>
+                <rect x="38" width="2" height="240" fill="#2b1a0e"/>
+                <rect x="12" width="1" height="240" fill="#5b3a1e" opacity=".6"/>
+              </pattern>
+            </defs>
+            <rect class="qd-wall" width="400" height="240" fill="url(#qd-planks)"/>
+            <!-- Sign -->
+            <g transform="translate(200 34)">
+              <rect x="-78" y="-15" width="156" height="30" rx="3" fill="#6b4524" stroke="#2b1a0e" stroke-width="2"/>
+              <circle cx="-70" cy="0" r="2" fill="#d4a23c"/><circle cx="70" cy="0" r="2" fill="#d4a23c"/>
+              <text y="6" text-anchor="middle" font-family="Rye, Georgia, serif" font-size="15" fill="#f3e6c8">Shootin' Gallery</text>
+            </g>
+            <!-- Shelf -->
+            <rect x="18" y="120" width="364" height="10" fill="#8a5a32" stroke="#2b1a0e" stroke-width="1.5"/>
+            <path d="M70 130l14 18M330 130l-14 18" stroke="#6b4524" stroke-width="5"/>
+            <g id="qd-bottles"></g>
+          </svg>
+          <div id="qd-effects" class="qd-effects" aria-hidden="true"></div>
+
+          <div id="qd-holster" class="qd-holster" aria-label="Holster">
+            <svg viewBox="0 0 60 96" aria-hidden="true">
+              <path class="qd-gun" d="M21 30c-5-14 2-26 10-27h10c4 2 4 8 1 12l-4 15Z" fill="#2b1a0e" stroke="#d4a23c" stroke-width="1.5"/>
+              <path d="M10 28h40l-7 58c-9 7-17 7-26 0Z" fill="#6b3f1d" stroke="#2b1a0e" stroke-width="2"/>
+              <path d="M15 33h30l-6 49c-6 4-12 4-18 0Z" fill="none" stroke="#d6b07a" stroke-width="1.2" stroke-dasharray="3 3"/>
+              <circle cx="30" cy="46" r="4" fill="#d4a23c"/>
+            </svg>
+            <span class="qd-holster-label">Holster</span>
+          </div>
+        </div>
+
+        <p id="qd-status" class="qd-status" aria-live="polite"></p>
+
+        <div id="qd-result" class="qd-result" hidden>
+          <h2 id="qd-rank" class="qd-rank"></h2>
+          <p id="qd-score" class="qd-score"></p>
+          <p id="qd-record" class="qd-record"></p>
+        </div>
+
+        <div class="actions">
+          <button id="qd-reload" type="button">Reload</button>
+        </div>
+        <p class="hint">Needs a mouse or a touchscreen. On a touchscreen, press the holster, then lift yer finger to draw.</p>
       </div>
     </section>
   </main>

@@ -4,6 +4,7 @@ import {
 } from './api.js';
 import { TEXT } from './copy.js';
 import { initHangman } from './hangman-ui.js';
+import { initQuickDraw } from './quickdraw-ui.js';
 import {
   initDoors, initScrollEffects, initReveal, initTumbleweed,
   bulletHole, shake, tossHats, reducedMotion,
@@ -43,7 +44,7 @@ for (const button of document.querySelectorAll('[data-scroll-to]')) {
 
 // --- Views (navigation is by the posters and the Hank's Saloon sign) ---------------------------------------------------------
 
-const VIEWS = ['home', 'joke', 'define', 'trivia', 'hangman'];
+const VIEWS = ['home', 'joke', 'define', 'trivia', 'hangman', 'quickdraw'];
 let firstRender = true;
 
 function currentView() {
@@ -68,6 +69,7 @@ function showView() {
   refreshScrollEffects();
   if (view === 'trivia') loadTopics();
   if (view === 'hangman') hangman.show();
+  if (view === 'quickdraw') quickdraw.show();
 }
 
 window.addEventListener('hashchange', showView);
@@ -409,6 +411,10 @@ document.addEventListener('keydown', (event) => {
 // --- Hangman's Hill (see hangman-ui.js) ------------------------------------------
 
 const hangman = initHangman({ isActive: () => currentView() === 'hangman' });
+
+// --- Quick Draw (see quickdraw-ui.js) ---------------------------------------------
+
+const quickdraw = initQuickDraw();
 
 // Show the view named in the address (or the saloon) now that everything is set up.
 showView();

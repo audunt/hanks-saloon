@@ -63,6 +63,8 @@ def run_page(browser, url):
 
 
 def main():
+    # Test names can contain characters like "→"; don't crash when output goes to a pipe on Windows.
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
     pages = [Path(p).name for p in sys.argv[1:]] or sorted(p.name for p in TEST_DIR.glob('*.test.html'))
     browser = find_browser()
     server = start_server()

@@ -80,7 +80,7 @@
   // --- Menu -----------------------------------------------------------------
   await test('home view is shown first, and there is no menu bar', async () => {
     assert(shown('#view-home'), 'home hidden');
-    for (const v of ['joke', 'define', 'trivia', 'hangman']) assert(!shown(`#view-${v}`), `${v} visible`);
+    for (const v of ['joke', 'define', 'trivia', 'hangman', 'quickdraw']) assert(!shown(`#view-${v}`), `${v} visible`);
     assert(!doc.querySelector('nav'), 'menu bar still present');
     assert(doc.querySelector('.site-header .brand').hash === '#home', 'sign does not link home');
   });
@@ -118,19 +118,19 @@
     await go('home');
   });
 
-  const onlyVisible = () => ['home', 'joke', 'define', 'trivia', 'hangman'].filter((name) => shown(`#view-${name}`));
+  const onlyVisible = () => ['home', 'joke', 'define', 'trivia', 'hangman', 'quickdraw'].filter((name) => shown(`#view-${name}`));
 
   await test('home page links to every activity, each poster with its own mugshot', async () => {
     const posters = [...doc.querySelectorAll('.activities .poster')];
-    assert(JSON.stringify(posters.map((a) => a.hash)) === JSON.stringify(['#joke', '#define', '#trivia', '#hangman']),
+    assert(JSON.stringify(posters.map((a) => a.hash)) === JSON.stringify(['#joke', '#define', '#trivia', '#hangman', '#quickdraw']),
       posters.map((a) => a.hash));
     const mugs = posters.map((a) => a.querySelector('.poster-mugshot use')?.getAttribute('href'));
-    assert(JSON.stringify(mugs) === JSON.stringify(['#mug-joke', '#mug-lingo', '#mug-trivia', '#mug-hangman']), mugs);
+    assert(JSON.stringify(mugs) === JSON.stringify(['#mug-joke', '#mug-lingo', '#mug-trivia', '#mug-hangman', '#mug-quickdraw']), mugs);
     assert(mugs.every((id) => doc.querySelector(`symbol${id}`)), 'mugshot artwork missing');
   });
 
   await test('posters open each activity; its back link and the sign return to the saloon', async () => {
-    for (const view of ['joke', 'define', 'trivia', 'hangman']) {
+    for (const view of ['joke', 'define', 'trivia', 'hangman', 'quickdraw']) {
       doc.querySelector(`.poster[href="#${view}"]`).click();
       await waitFor(() => shown(`#view-${view}`), `${view} via poster`);
       assert(onlyVisible().join() === view, `visible: ${onlyVisible()}`);
@@ -503,6 +503,101 @@
     assert(scene().dataset.stage === '0', 'miss counted while away');
   });
 
+  // --- Quick Draw -------------------------------------------------------------------
+  const phase = () => $('#qd-range').dataset.phase;
+  const shattered = () => doc.querySelectorAll('.qd-bottle.shattered').length;
+  const spent = () => doc.querySelectorAll('.qd-chamber.spent').length;
+  function pointer(target, type, options = {}) {
+    const bubbles = type !== 'pointerenter' && type !== 'pointerleave';
+    target.dispatchEvent(new win.PointerEvent(type, { bubbles, cancelable: true, pointerType: 'mouse', button: 0, ...options }));
+  }
+  function shootBottle(i) {
+    const glass = doc.querySelector(`.qd-bottle[data-bottle="${i}"] path`);
+    const box = glass.getBoundingClientRect();
+    pointer(glass, 'pointerdown', { clientX: box.x + box.width / 2, clientY: box.y + box.height / 2 });
+  }
+  function shootWall() {
+    const box = $('#qd-range').getBoundingClientRect();
+    pointer(doc.querySelector('.qd-wall'), 'pointerdown', { clientX: box.x + 30, clientY: box.y + box.height - 30 });
+  }
+  function touchDraw() {
+    pointer($('#qd-holster'), 'pointerdown', { pointerType: 'touch' });
+    pointer($('#qd-holster'), 'pointerleave', { pointerType: 'touch' });
+  }
+  const timerSeconds = () => parseFloat(text('#qd-timer'));
+  let firstRound = null; // { hits, seconds } of the first finished round: the saloon record
+
+  await test('quick draw: starts ready, with six bottles and a full cylinder', async () => {
+    await go('quickdraw');
+    assert(phase() === 'ready', phase());
+    assert(doc.querySelectorAll('.qd-bottle').length === 6 && shattered() === 0, 'bottles missing');
+    assert(doc.querySelectorAll('.qd-chamber').length === 6 && spent() === 0, 'cylinder not loaded');
+    assert(text('#qd-timer') === TEXT.quickdraw.timer(0) && text('#qd-hits') === TEXT.quickdraw.bottles(0, 6), text('#qd-timer'));
+    assert(text('#qd-status') === TEXT.quickdraw.status.ready && !shown('#qd-result'), text('#qd-status'));
+  });
+
+  await test('quick draw: no shooting before the draw; brushing past the holster does not count', async () => {
+    shootBottle(0);
+    assert(phase() === 'ready' && shattered() === 0 && spent() === 0, 'shot fired before the draw');
+    pointer($('#qd-holster'), 'pointerenter');
+    pointer($('#qd-holster'), 'pointerleave');
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    assert(phase() === 'ready', `brushing past changed the phase to ${phase()}`);
+  });
+
+  await test('quick draw: resting on the holster readies you; leaving it starts the clock', async () => {
+    pointer($('#qd-holster'), 'pointerenter');
+    await waitFor(() => phase() === 'holstered', 'holstered after resting');
+    assert(text('#qd-status') === TEXT.quickdraw.status.holstered, text('#qd-status'));
+    pointer($('#qd-holster'), 'pointerdown'); // clicking while holstered: not a shot
+    assert(spent() === 0, 'shot fired from the holster');
+    pointer($('#qd-holster'), 'pointerleave');
+    assert(phase() === 'drawn' && text('#qd-status') === TEXT.quickdraw.status.drawn(6), text('#qd-status'));
+    await waitFor(() => timerSeconds() > 0, 'clock running');
+  });
+
+  await test('quick draw: hits shatter bottles, misses leave holes, the sixth shot stops the clock', async () => {
+    for (let i = 0; i < 5; i++) {
+      shootBottle(i);
+      assert(shattered() === i + 1 && spent() === i + 1, `after shot ${i + 1}: ${shattered()} broken, ${spent()} spent`);
+      assert(text('#qd-hits') === TEXT.quickdraw.bottles(i + 1, 6), text('#qd-hits'));
+    }
+    assert(text('#qd-status') === TEXT.quickdraw.status.drawn(1), text('#qd-status'));
+    shootWall();
+    assert(phase() === 'done' && spent() === 6 && shattered() === 5, `${phase()}, ${spent()} spent`);
+    assert(doc.querySelector('#qd-effects .bullet-hole'), 'no bullet hole for the miss');
+    assert(shown('#qd-result'), 'no result');
+    const seconds = timerSeconds();
+    assert(text('#qd-score') === TEXT.quickdraw.result(5, seconds), `${text('#qd-score')} vs timer ${seconds}`);
+    assert(text('#qd-rank') === 'Not bad, cowpoke.', text('#qd-rank'));
+    assert(text('#qd-record') === TEXT.quickdraw.newRecord, text('#qd-record'));
+    firstRound = { hits: 5, seconds };
+    const frozen = text('#qd-timer');
+    shootBottle(5);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    assert(text('#qd-timer') === frozen && shattered() === 5, 'clock or shots kept going after the sixth shot');
+  });
+
+  await test('quick draw: Reload resets the range; a worse round keeps the record (touchscreen)', async () => {
+    $('#qd-reload').click();
+    assert(phase() === 'ready' && shattered() === 0 && spent() === 0, 'range not reset');
+    assert(!doc.querySelector('#qd-effects *') && !shown('#qd-result'), 'old holes or result left');
+    touchDraw();
+    assert(phase() === 'drawn', `touch draw failed: ${phase()}`);
+    for (let i = 0; i < 6; i++) shootWall();
+    assert(phase() === 'done' && text('#qd-rank') === "Couldn't hit the broad side of a barn!", text('#qd-rank'));
+    assert(text('#qd-record') === TEXT.quickdraw.record(firstRound.hits, firstRound.seconds), `record changed: ${text('#qd-record')}`);
+  });
+
+  await test('quick draw: a round abandoned halfway starts over when you come back', async () => {
+    $('#qd-reload').click();
+    touchDraw();
+    shootBottle(2);
+    await go('joke');
+    await go('quickdraw');
+    assert(phase() === 'ready' && shattered() === 0 && spent() === 0, `round carried on: ${phase()}`);
+  });
+
   // --- Phone width ----------------------------------------------------------------
   await test('no sideways scrolling at 360px wide on any view', async () => {
     frame.style.width = '360px';
@@ -520,7 +615,7 @@
         submit('#trivia-setup');
         await waitFor(() => shown('#trivia-play'), 'quiz');
       });
-      for (const view of ['home', 'joke', 'define', 'trivia', 'hangman']) {
+      for (const view of ['home', 'joke', 'define', 'trivia', 'hangman', 'quickdraw']) {
         await go(view);
         const root = doc.documentElement;
         assert(root.scrollWidth <= root.clientWidth, `${view}: page is ${root.scrollWidth}px wide in a ${root.clientWidth}px window`);

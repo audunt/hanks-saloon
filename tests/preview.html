@@ -10,6 +10,7 @@
 <!-- Puts the app into a given state with fake data, for screenshots.
      Usage: preview.html?state=home|joke|define|define-error|trivia-setup|trivia-question|trivia-result|trivia-perfect|hangman
      For hangman, add &misses=0…6 for each stage of the scene, or &won.
+     Quick Draw: quickdraw | quickdraw-holstered | quickdraw-firing | quickdraw-done
      Add &width=375 for a phone-sized frame, &doors to play the saloon-doors intro,
      &doorsAt=0.8 to freeze the intro 0.8 seconds in, or &hatsAt=1 (with trivia-perfect) to freeze the hat toss. Other animations are fast-forwarded
      to their end so screenshots are predictable. -->
@@ -81,6 +82,31 @@
       [...new Set(word)].slice(0, 2).forEach(press);
       const wrong = [...'zqxjvkwy'].filter((l) => !word.includes(l));
       wrong.slice(0, Number(params.get('misses') || 0)).forEach(press);
+    }
+  } else if (state.startsWith('quickdraw')) {
+    // quickdraw (ready) | quickdraw-holstered | quickdraw-firing (3 hits, 1 miss) | quickdraw-done (5 hits, 1 miss)
+    go('quickdraw');
+    await wait(100);
+    const pointer = (target, type, options = {}) => target.dispatchEvent(new win.PointerEvent(type, {
+      bubbles: type !== 'pointerenter' && type !== 'pointerleave', cancelable: true, pointerType: 'touch', button: 0, ...options }));
+    const at = (element, dx = 0.5, dy = 0.5) => {
+      const box = element.getBoundingClientRect();
+      return { clientX: box.x + box.width * dx, clientY: box.y + box.height * dy };
+    };
+    const holsterArea = $('#qd-holster');
+    const shootBottle = (i) => { const glass = $(`.qd-bottle[data-bottle="${i}"] path`); pointer(glass, 'pointerdown', at(glass)); };
+    const miss = (dx, dy) => pointer($('.qd-wall'), 'pointerdown', at($('#qd-range'), dx, dy));
+    if (state !== 'quickdraw') pointer(holsterArea, 'pointerdown');
+    if (state === 'quickdraw-firing' || state === 'quickdraw-done') {
+      pointer(holsterArea, 'pointerleave');
+      await wait(400);
+      [0, 2, 3].forEach(shootBottle);
+      miss(0.42, 0.3);
+      if (state === 'quickdraw-done') {
+        await wait(900);
+        shootBottle(1);
+        shootBottle(5);
+      }
     }
   } else if (state === 'trivia-setup') {
     // Topic chosen, with more rounds than Hank has questions, so the warning shows.
