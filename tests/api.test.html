@@ -7,7 +7,7 @@
 <body>
 <pre id="results">running...</pre>
 <script type="module">
-  import { test, info, assert, rejectsWithAPIError, withFetch, jsonResponse, finish } from './harness.js';
+  import { test, info, assert, skip, rejectsWithAPIError, withFetch, jsonResponse, finish } from './harness.js';
   import { getJoke, getDefinition, getTriviaQuestions, getTriviaCategories, getTriviaQuestionCount } from '../site/js/api.js';
 
   const fail = () => { throw new Error('fetch should not have been called'); };
@@ -179,14 +179,26 @@
     assert(verdicts.every((v) => v.startsWith('safe')), verdicts.join(', '));
   });
 
+  // The dictionary refuses connections from the automated test browser (real visitors are fine),
+  // so a live lookup that can't connect at all is skipped rather than failed.
+  const DICTIONARY_UNREACHABLE = /telegraph line to the dictionary is down/;
+  const SKIP_DICTIONARY = 'dictionary unreachable from the test browser';
+
   await test('LIVE define hello', async () => {
-    const definition = await getDefinition('hello');
+    let definition;
+    try {
+      definition = await getDefinition('hello');
+    } catch (error) {
+      if (DICTIONARY_UNREACHABLE.test(error.message)) skip(SKIP_DICTIONARY);
+      throw error;
+    }
     assert(/greeting/i.test(definition), definition);
   });
 
-  await test('LIVE define unknown word gives APIError', async () => {
+  await test('LIVE define unknown word says Hank never heard of it', async () => {
     const error = await rejectsWithAPIError(getDefinition('qwzxv'));
-    info(`unknown word message: ${error.message}`);
+    if (DICTIONARY_UNREACHABLE.test(error.message)) skip(SKIP_DICTIONARY);
+    assert(/Never heard of/.test(error.message), error.message);
   });
 
   await test('LIVE trivia 3 easy Geography', async () => {

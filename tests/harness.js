@@ -4,6 +4,14 @@
 const lines = [];
 let passed = 0;
 let failed = 0;
+let skipped = 0;
+
+class Skip extends Error {}
+
+/** Call inside a test to skip it (not counted as a failure), e.g. when a live service can't be reached. */
+export function skip(reason) {
+  throw new Skip(reason);
+}
 
 export async function test(name, fn) {
   try {
@@ -11,6 +19,11 @@ export async function test(name, fn) {
     passed++;
     lines.push(`PASS ${name}`);
   } catch (error) {
+    if (error instanceof Skip) {
+      skipped++;
+      lines.push(`SKIP ${name}: ${error.message}`);
+      return;
+    }
     failed++;
     lines.push(`FAIL ${name}: ${error && error.message}`);
   }
@@ -63,7 +76,7 @@ export async function waitFor(check, description, timeoutMs = 15000) {
 }
 
 export function finish() {
-  lines.push(`SUMMARY passed=${passed} failed=${failed}`);
+  lines.push(`SUMMARY passed=${passed} failed=${failed} skipped=${skipped}`);
   document.getElementById('results').textContent = lines.join('\n');
   document.title = 'DONE';
 }

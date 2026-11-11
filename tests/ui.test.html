@@ -12,7 +12,7 @@
 </script>
 <iframe id="app" src="../site/index.html" style="width: 800px; height: 900px"></iframe>
 <script type="module">
-  import { test, info, assert, withFetch, jsonResponse, waitFor, finish } from './harness.js';
+  import { test, info, assert, skip, withFetch, jsonResponse, waitFor, finish } from './harness.js';
   import { TEXT } from '../site/js/copy.js';
   import { WORDS } from '../site/js/hangman-words.js';
 
@@ -645,6 +645,10 @@
     setInput('#define-input', 'apple');
     submit('#define-form');
     await waitFor(() => !$('#define-button').disabled, 'lookup finished', 30000);
+    // The dictionary refuses the automated test browser (real visitors are fine): skip if it couldn't connect.
+    if (/telegraph line to the dictionary is down/.test(text('#define-status'))) {
+      skip('dictionary unreachable from the test browser');
+    }
     assert(shown('#define-card') && /fruit/i.test(text('#define-text')), text('#define-status') || text('#define-text'));
   });
 

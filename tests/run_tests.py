@@ -3,8 +3,8 @@
 Usage:  python tests/run_tests.py [test-page ...]   (works from any folder)
 
 Serves the project folder on localhost, opens each *.test.html page in a
-headless browser, and prints the PASS/FAIL lines each page reports.
-Exits with status 1 if any test fails.
+headless browser, and prints the PASS/FAIL/SKIP lines each page reports,
+then a total. Exits with status 1 if any test fails (skipped tests don't count).
 """
 import functools
 import html
@@ -70,6 +70,7 @@ def main():
     server = start_server()
     base = f'http://127.0.0.1:{server.server_port}/{TEST_DIR.name}/'
     any_failed = False
+    totals = {'passed': 0, 'failed': 0, 'skipped': 0}
     try:
         for i, page in enumerate(pages):
             if i:
@@ -77,10 +78,15 @@ def main():
             print(f'=== {page}')
             output = run_page(browser, base + page)
             print(output)
-            if 'FAIL' in output or 'SUMMARY' not in output:
+            summary = re.search(r'^SUMMARY passed=(\d+) failed=(\d+)(?: skipped=(\d+))?', output, re.M)
+            if not summary or re.search(r'^FAIL ', output, re.M):
                 any_failed = True
+            if summary:
+                for key, value in zip(totals, summary.groups()):
+                    totals[key] += int(value or 0)
     finally:
         server.shutdown()
+    print(f"=== TOTAL passed={totals['passed']} failed={totals['failed']} skipped={totals['skipped']}")
     sys.exit(1 if any_failed else 0)
 
 
