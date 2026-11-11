@@ -8,7 +8,7 @@
 <pre id="results">running...</pre>
 <script type="module">
   import { test, info, assert, rejectsWithAPIError, withFetch, jsonResponse, finish } from './harness.js';
-  import { getJoke, getDefinition, getTriviaQuestions } from '../site/js/api.js';
+  import { getJoke, getDefinition, getTriviaQuestions, getTriviaCategories, getTriviaQuestionCount } from '../site/js/api.js';
 
   const fail = () => { throw new Error('fetch should not have been called'); };
   const offline = () => Promise.reject(new TypeError('Failed to fetch'));
@@ -84,7 +84,75 @@
       assert(q.correct === 'First item', q.correct);
     }));
 
+  await test('trivia: topic is sent only when chosen', async () => {
+    const urls = [];
+    await withFetch(window, async (url) => { urls.push(url); return jsonResponse({ response_code: 0, results: [] }); }, async () => {
+      await getTriviaQuestions(3, null, 18);
+      await getTriviaQuestions(3);
+    });
+    assert(urls[0].includes('category=18'), urls[0]);
+    assert(!urls[1].includes('category='), urls[1]);
+  });
+
+  await test('trivia: not enough questions suggests loosening grit or topic', () =>
+    withFetch(window, async () => jsonResponse({ response_code: 1, results: [] }),
+      () => rejectsWithAPIError(getTriviaQuestions(20, 'hard', 30), /loosen the grit or topic/)));
+
+  await test('categories: list is read from the API', async () => {
+    let requested = '';
+    await withFetch(window, async (url) => {
+      requested = url;
+      return jsonResponse({ trivia_categories: [{ id: 9, name: 'General Knowledge' }, { id: 18, name: 'Science: Computers', extra: 1 }] });
+    }, async () => {
+      const categories = await getTriviaCategories();
+      assert(requested.endsWith('api_category.php'), requested);
+      assert(JSON.stringify(categories) === '[{"id":9,"name":"General Knowledge"},{"id":18,"name":"Science: Computers"}]',
+        JSON.stringify(categories));
+    });
+  });
+
+  await test('categories: malformed or empty list is unexpected', async () => {
+    for (const body of [{}, { trivia_categories: [] }, { trivia_categories: [{ id: '9', name: 'x' }] }]) {
+      await withFetch(window, async () => jsonResponse(body),
+        () => rejectsWithAPIError(getTriviaCategories(), /garbled telegram/));
+    }
+  });
+
+  await test('categories: network failure gives friendly error', () =>
+    withFetch(window, () => Promise.reject(new TypeError('Failed to fetch')),
+      () => rejectsWithAPIError(getTriviaCategories(), /telegraph line to the trivia master is down/)));
+
+  await test('question count: read per difficulty for a topic', async () => {
+    let requested = '';
+    await withFetch(window, async (url) => {
+      requested = url;
+      return jsonResponse({ category_id: 30, category_question_count: {
+        total_question_count: 40, total_easy_question_count: 17, total_medium_question_count: 17, total_hard_question_count: 6 } });
+    }, async () => {
+      const counts = await getTriviaQuestionCount(30);
+      assert(requested.endsWith('api_count.php?category=30'), requested);
+      assert(JSON.stringify(counts) === '{"any":40,"easy":17,"medium":17,"hard":6}', JSON.stringify(counts));
+    });
+  });
+
+  await test('question count: missing numbers are unexpected', () =>
+    withFetch(window, async () => jsonResponse({ category_question_count: { total_question_count: 40 } }),
+      () => rejectsWithAPIError(getTriviaQuestionCount(30), /garbled telegram/)));
+
   // --- Live services ----------------------------------------------------------
+  await test('LIVE trivia topics', async () => {
+    const categories = await getTriviaCategories();
+    assert(categories.length >= 20, `only ${categories.length} topics`);
+    assert(categories.some((c) => c.id === 9 && c.name === 'General Knowledge'), 'General Knowledge missing');
+    info(`${categories.length} live topics`);
+  });
+
+  await test('LIVE question count for Science: Gadgets', async () => {
+    const counts = await getTriviaQuestionCount(30);
+    assert(counts.any > 0 && counts.any === counts.easy + counts.medium + counts.hard, JSON.stringify(counts));
+    info(`Science: Gadgets counts ${JSON.stringify(counts)}`);
+  });
+
   await test('LIVE joke', async () => {
     const joke = await getJoke();
     assert(typeof joke.text === 'string' && joke.text.length > 0, 'empty joke');
@@ -101,11 +169,12 @@
     info(`unknown word message: ${error.message}`);
   });
 
-  await test('LIVE trivia 3 easy', async () => {
-    const questions = await getTriviaQuestions(3, 'easy');
+  await test('LIVE trivia 3 easy Geography', async () => {
+    const questions = await getTriviaQuestions(3, 'easy', 22);
     assert(questions.length === 3, `got ${questions.length}`);
     for (const q of questions) {
       assert(q.difficulty === 'easy', q.difficulty);
+      assert(q.category === 'Geography', `topic ignored: ${q.category}`);
       assert(q.answers.length === 4 && q.answers.includes(q.correct), JSON.stringify(q));
       assert(!/%[0-9A-F]{2}/.test(q.question), `not decoded: ${q.question}`);
     }

@@ -1,5 +1,7 @@
 // Page logic: the menu plus one section per activity.
-import { APIError, getJoke, getDefinition, getTriviaQuestions } from './api.js';
+import {
+  APIError, getJoke, getDefinition, getTriviaQuestions, getTriviaCategories, getTriviaQuestionCount,
+} from './api.js';
 import { TEXT } from './copy.js';
 import {
   initDoors, initScrollEffects, initReveal, initTumbleweed,
@@ -67,10 +69,11 @@ function showView() {
   }
   firstRender = false;
   refreshScrollEffects();
+  if (view === 'trivia') loadTopics();
 }
 
 window.addEventListener('hashchange', showView);
-showView();
+// The first showView() runs at the end of this file, once everything it uses is set up.
 
 // --- Tall Tales (joke) -----------------------------------------------------------
 
@@ -152,7 +155,101 @@ const triviaFeedback = $('#trivia-feedback');
 const triviaNext = $('#trivia-next');
 const triviaResult = $('#trivia-result');
 
+const triviaTopic = $('#trivia-topic');
+const triviaAvailability = $('#trivia-availability');
+
 let quiz = null; // { questions, results, index, score, asked, answered }
+
+// --- Trivia topics -----------------------------------------------------------------
+
+let topicsLoad = null; // in-flight or finished load; reset after a failure so the next visit retries
+
+/** Fill the Topic dropdown, the first time the Showdown is opened. */
+function loadTopics() {
+  if (topicsLoad) return topicsLoad;
+  topicsLoad = getTriviaCategories()
+    .then((categories) => {
+      renderTopics(categories);
+      if (triviaAvailability.textContent === TEXT.trivia.topicsFailed) setAvailability('');
+    })
+    .catch((error) => {
+      if (!(error instanceof APIError)) console.error(error);
+      setAvailability(TEXT.trivia.topicsFailed);
+      topicsLoad = null;
+    });
+  return topicsLoad;
+}
+
+/** "Entertainment: Film" goes under "Entertainment" as "Film"; topics without a prefix go under "Assorted". */
+function renderTopics(categories) {
+  const groups = new Map();
+  for (const { id, name } of categories) {
+    const match = name.match(/^([^:]+):\s*(.+)$/);
+    const group = match ? match[1] : TEXT.trivia.topicGroupOther;
+    if (!groups.has(group)) groups.set(group, []);
+    groups.get(group).push({ id, label: match ? match[2] : name });
+  }
+
+  const other = TEXT.trivia.topicGroupOther;
+  const order = [...groups.keys()].sort((a, b) => (a === other ? -1 : b === other ? 1 : a.localeCompare(b)));
+  const optgroups = order.map((group) => {
+    const optgroup = document.createElement('optgroup');
+    optgroup.label = group;
+    const topics = groups.get(group).sort((a, b) => a.label.localeCompare(b.label));
+    optgroup.append(...topics.map(({ id, label }) => new Option(label, String(id))));
+    return optgroup;
+  });
+
+  const anyOption = triviaTopic.options[0];
+  triviaTopic.replaceChildren(anyOption, ...optgroups);
+}
+
+/** The selected topic's full name, e.g. "Science: Gadgets". */
+function topicName() {
+  const option = triviaTopic.selectedOptions[0];
+  const group = option?.parentElement?.label;
+  return group && group !== TEXT.trivia.topicGroupOther ? `${group}: ${option.text}` : option?.text;
+}
+
+function setAvailability(text, tooFew = false) {
+  triviaAvailability.textContent = text;
+  triviaAvailability.classList.toggle('too-few', tooFew);
+}
+
+const topicCounts = new Map(); // topic id -> { any, easy, medium, hard }, so each topic is asked about once
+let availabilityRequest = 0;
+
+/** Tell the player how many questions Hank has for the chosen topic and grit. */
+async function updateAvailability() {
+  const topic = triviaTopic.value;
+  const request = ++availabilityRequest;
+  if (!topic) {
+    setAvailability('');
+    return;
+  }
+
+  let counts = topicCounts.get(topic);
+  if (!counts) {
+    try {
+      counts = await getTriviaQuestionCount(topic);
+      topicCounts.set(topic, counts);
+    } catch {
+      if (request === availabilityRequest) setAvailability(''); // the hint is optional; stay quiet
+      return;
+    }
+  }
+  if (request !== availabilityRequest) return; // the player picked something else meanwhile
+
+  const difficulty = triviaDifficulty.value;
+  const count = counts[difficulty || 'any'];
+  const tooFew = Number(triviaAmount.value) > count;
+  const text = TEXT.trivia.available(count, TEXT.trivia.difficulty[difficulty], topicName());
+  setAvailability(tooFew && count > 0 ? text + TEXT.trivia.tooFewSuffix : text, tooFew);
+}
+
+triviaTopic.addEventListener('change', updateAvailability);
+triviaDifficulty.addEventListener('change', updateAvailability);
+triviaAmount.addEventListener('input', updateAvailability);
 
 triviaSetup.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -168,7 +265,7 @@ triviaSetup.addEventListener('submit', async (event) => {
   triviaStart.disabled = true;
   setStatus(triviaStatus, TEXT.trivia.loading, 'loading');
   try {
-    const questions = await getTriviaQuestions(amount, triviaDifficulty.value || null);
+    const questions = await getTriviaQuestions(amount, triviaDifficulty.value || null, triviaTopic.value || null);
     setStatus(triviaStatus, '');
     quiz = { questions, results: [], index: 0, score: 0, asked: 0, answered: false };
     triviaSetup.hidden = true;
@@ -310,3 +407,6 @@ document.addEventListener('keydown', (event) => {
     chooseAnswer(choice);
   }
 });
+
+// Show the view named in the address (or the saloon) now that everything is set up.
+showView();

@@ -13,6 +13,8 @@ const TIMEOUT_MS = 10000;
 const JOKE_URL = 'https://v2.jokeapi.dev/joke/Any';
 const DICTIONARY_URL = 'https://api.dictionaryapi.dev/api/v2/entries/en/';
 const TRIVIA_URL = 'https://opentdb.com/api.php';
+const TRIVIA_CATEGORIES_URL = 'https://opentdb.com/api_category.php';
+const TRIVIA_COUNT_URL = 'https://opentdb.com/api_count.php';
 
 // How each service is named in messages, e.g. "The telegraph line to the joke teller is down."
 const JOKES = 'joke teller';
@@ -109,13 +111,47 @@ function parseQuestion(item) {
   };
 }
 
+/** Returns the trivia topics: a list of { id, name }, e.g. { id: 10, name: 'Entertainment: Books' }. */
+export async function getTriviaCategories() {
+  const { response, data } = await getJSON(TRIVIA_CATEGORIES_URL, TRIVIA);
+  if (!response.ok) throw badStatus(TRIVIA, response.status);
+
+  const list = data?.trivia_categories;
+  const valid = Array.isArray(list) && list.length > 0
+    && list.every((c) => Number.isInteger(c?.id) && typeof c?.name === 'string');
+  if (!valid) throw unexpected(TRIVIA);
+  return list.map(({ id, name }) => ({ id, name }));
+}
+
+/**
+ * Returns how many questions a topic has: { any, easy, medium, hard }.
+ * These include true/false questions, so for multiple-choice they're an upper limit.
+ */
+export async function getTriviaQuestionCount(category) {
+  const url = `${TRIVIA_COUNT_URL}?category=${encodeURIComponent(category)}`;
+  const { response, data } = await getJSON(url, TRIVIA);
+  if (!response.ok) throw badStatus(TRIVIA, response.status);
+
+  const counts = data?.category_question_count;
+  const result = {
+    any: counts?.total_question_count,
+    easy: counts?.total_easy_question_count,
+    medium: counts?.total_medium_question_count,
+    hard: counts?.total_hard_question_count,
+  };
+  if (!Object.values(result).every(Number.isInteger)) throw unexpected(TRIVIA);
+  return result;
+}
+
 /**
  * Returns a list of multiple-choice questions, each
  * { category, difficulty, question, answers (shuffled), correct }.
+ * difficulty and category (a topic id) are optional.
  */
-export async function getTriviaQuestions(amount = 5, difficulty = null) {
+export async function getTriviaQuestions(amount = 5, difficulty = null, category = null) {
   const params = new URLSearchParams({ amount: String(amount), type: 'multiple', encode: 'url3986' });
   if (difficulty) params.set('difficulty', difficulty);
+  if (category) params.set('category', String(category));
 
   const { response, data } = await getJSON(`${TRIVIA_URL}?${params}`, TRIVIA);
 
@@ -124,7 +160,7 @@ export async function getTriviaQuestions(amount = 5, difficulty = null) {
   if (!data || !Array.isArray(data.results)) throw unexpected(TRIVIA);
 
   if (data.response_code === 1) {
-    throw new APIError("The trivia master ain't got that many questions. Try fewer rounds.");
+    throw new APIError("The trivia master ain't got that many questions. Try fewer rounds, or loosen the grit or topic.");
   }
   if (data.response_code !== 0) {
     throw new APIError(`The trivia master sent back a bad telegram (code ${data.response_code}).`);

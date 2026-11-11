@@ -198,9 +198,14 @@
     <!-- Trivia Showdown -->
     <section id="view-trivia" class="view container narrow" aria-labelledby="trivia-heading" hidden>
       <h1 id="trivia-heading" class="view-title">Trivia Showdown</h1>
-      <p class="lead">The six-shooter's loaded with questions from the Open Trivia Database. Step into the street, partner.</p>
+      <p class="lead">The six-shooter's loaded with questions from the Open Trivia Database. Pick yer topic and step into the street, partner.</p>
 
       <form id="trivia-setup" class="card" novalidate>
+        <label class="topic-label">Topic
+          <select id="trivia-topic">
+            <option value="">Any ol' topic</option>
+          </select>
+        </label>
         <div class="row">
           <label>Rounds
             <input id="trivia-amount" type="number" min="1" max="20" value="5" inputmode="numeric">
@@ -215,6 +220,7 @@
           </label>
           <button id="trivia-start" type="submit">Draw!</button>
         </div>
+        <p id="trivia-availability" class="hint availability" aria-live="polite"></p>
         <p id="trivia-status" class="status" role="status"></p>
       </form>
 

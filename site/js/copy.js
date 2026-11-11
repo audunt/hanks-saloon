@@ -32,5 +32,14 @@ export const TEXT = {
       [0, 'bad', 'Back to the ranch for target practice.'],
     ],
     difficulty: { easy: 'Greenhorn', medium: 'Wrangler', hard: 'Gunslinger' },
+
+    // Topic picker. Topics named "Group: Topic" are grouped; the rest go under topicGroupOther.
+    topicGroupOther: 'Assorted',
+    topicsFailed: "Couldn't fetch Hank's list of topics. Any ol' topic it is.",
+    // e.g. "Hank's got up to 17 Wrangler questions on Science: Gadgets."
+    available: (count, grit, topic) => count === 0
+      ? `Hank ain't got any ${grit ? `${grit} ` : ''}questions on ${topic}. Try another grit.`
+      : `Hank's got up to ${count} ${grit ? `${grit} ` : ''}question${count === 1 ? '' : 's'} on ${topic}.`,
+    tooFewSuffix: ' Ask for fewer rounds, partner.',
   },
 };

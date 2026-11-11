@@ -8,7 +8,7 @@
 </head>
 <body>
 <!-- Puts the app into a given state with fake data, for screenshots.
-     Usage: preview.html?state=home|joke|define|define-error|trivia-question|trivia-result|trivia-perfect
+     Usage: preview.html?state=home|joke|define|define-error|trivia-setup|trivia-question|trivia-result|trivia-perfect
      Add &width=375 for a phone-sized frame, &doors to play the saloon-doors intro,
      &doorsAt=0.8 to freeze the intro 0.8 seconds in, or &hatsAt=1 (with trivia-perfect) to freeze the hat toss. Other animations are fast-forwarded
      to their end so screenshots are predictable. -->
@@ -40,6 +40,17 @@
   ];
 
   win.fetch = async (url) => {
+    if (url.includes('api_category.php')) {
+      return jsonResponse({ trivia_categories: [
+        { id: 9, name: 'General Knowledge' }, { id: 22, name: 'Geography' }, { id: 23, name: 'History' },
+        { id: 11, name: 'Entertainment: Film' }, { id: 12, name: 'Entertainment: Music' },
+        { id: 18, name: 'Science: Computers' }, { id: 30, name: 'Science: Gadgets' },
+      ] });
+    }
+    if (url.includes('api_count.php')) {
+      return jsonResponse({ category_question_count: { total_question_count: 40, total_easy_question_count: 17,
+        total_medium_question_count: 17, total_hard_question_count: 6 } });
+    }
     if (url.includes('jokeapi')) return jsonResponse({ type: 'twopart', setup: 'Why do programmers prefer dark mode?', delivery: 'Because light attracts bugs.' });
     if (url.includes('qwzxv')) return jsonResponse({}, 404);
     if (url.includes('dictionaryapi')) return jsonResponse([{ meanings: [{ definitions: [{ definition: 'The occurrence and development of events by chance in a happy or beneficial way.' }] }] }]);
@@ -55,6 +66,18 @@
     go('define');
     $('#define-input').value = state === 'define-error' ? 'qwzxv' : 'serendipity';
     $('#define-form').requestSubmit();
+  } else if (state === 'trivia-setup') {
+    // Topic chosen, with more rounds than Hank has questions, so the warning shows.
+    go('trivia');
+    await wait(200);
+    const select = (selector, value) => {
+      $(selector).value = value;
+      $(selector).dispatchEvent(new win.Event('change', { bubbles: true }));
+    };
+    select('#trivia-topic', '30');
+    select('#trivia-difficulty', 'hard');
+    $('#trivia-amount').value = '10';
+    $('#trivia-amount').dispatchEvent(new win.Event('input', { bubbles: true }));
   } else if (state.startsWith('trivia')) {
     go('trivia');
     $('#trivia-setup').requestSubmit();

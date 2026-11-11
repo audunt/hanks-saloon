@@ -4,7 +4,7 @@ A Western-themed web page for trying out fun public APIs:
 
 - **Tall Tales** – a random joke from [JokeAPI](https://v2.jokeapi.dev/)
 - **Frontier Lingo** – the definition of an English word from the [Free Dictionary API](https://dictionaryapi.dev/)
-- **Trivia Showdown** – a multiple-choice quiz from the [Open Trivia Database](https://opentdb.com/)
+- **Trivia Showdown** – a multiple-choice quiz from the [Open Trivia Database](https://opentdb.com/), with a choice of 24 topics
 
 Plain HTML, CSS and JavaScript – no build step. Fonts (Rye, Bitter, Special Elite) load from Google Fonts. All animations switch off for visitors whose system is set to reduce motion.
 
@@ -58,6 +58,6 @@ This runs `api.test.html` (the API code, with simulated and live responses) and 
 python -m http.server 8000
 ```
 
-Then open http://localhost:8000/tests/preview.html?state=trivia-question. States: `home`, `joke`, `define`, `define-error`, `trivia-question`, `trivia-result`, `trivia-perfect`. Extras: `&width=375` for phone width, `&doors` to play the saloon-doors intro, `&doorsAt=0.6` to freeze it 0.6 s in, `&hatsAt=1` (with `trivia-perfect`) to freeze the hat toss.
+Then open http://localhost:8000/tests/preview.html?state=trivia-question. States: `home`, `joke`, `define`, `define-error`, `trivia-setup`, `trivia-question`, `trivia-result`, `trivia-perfect`. Extras: `&width=375` for phone width, `&doors` to play the saloon-doors intro, `&doorsAt=0.6` to freeze it 0.6 s in, `&hatsAt=1` (with `trivia-perfect`) to freeze the hat toss.
 
 The saloon doors only play once per browser session. To see them again, open the site in a new tab.

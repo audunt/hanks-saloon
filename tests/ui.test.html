@@ -52,11 +52,66 @@
       correct_answer: enc(correct), incorrect_answers: incorrect.map(enc) };
   }
 
+  function setSelect(selector, value) {
+    $(selector).value = value;
+    $(selector).dispatchEvent(new win.Event('change', { bubbles: true }));
+  }
+
+  // A fake Open Trivia DB: topic list, per-topic counts and (optionally) questions.
+  const CATEGORIES = [
+    { id: 9, name: 'General Knowledge' }, { id: 17, name: 'Science & Nature' },
+    { id: 11, name: 'Entertainment: Film' }, { id: 10, name: 'Entertainment: Books' },
+    { id: 30, name: 'Science: Gadgets' }, { id: 18, name: 'Science: Computers' },
+  ];
+  const GADGET_COUNTS = { category_id: 30, category_question_count: {
+    total_question_count: 40, total_easy_question_count: 17, total_medium_question_count: 17, total_hard_question_count: 6 } };
+  function triviaStub(questions = [], log = []) {
+    return async (url) => {
+      log.push(url);
+      if (url.includes('api_category.php')) return jsonResponse({ trivia_categories: CATEGORIES });
+      if (url.includes('api_count.php')) return jsonResponse(GADGET_COUNTS);
+      return jsonResponse({ response_code: 0, results: questions });
+    };
+  }
+
   // --- Menu -----------------------------------------------------------------
   await test('home view is shown first, with Home marked current', async () => {
     assert(shown('#view-home'), 'home hidden');
     for (const v of ['joke', 'define', 'trivia']) assert(!shown(`#view-${v}`), `${v} visible`);
     assert(doc.querySelector('nav a[aria-current="page"]').hash === '#home', 'wrong current link');
+  });
+
+  // --- Trivia topics (run before anything else opens the Showdown, which loads them) ---
+  await test('topics: failed load keeps "any topic" and says so', async () => {
+    await withFetch(win, () => Promise.reject(new TypeError('Failed to fetch')), async () => {
+      await go('trivia');
+      await waitFor(() => text('#trivia-availability') === TEXT.trivia.topicsFailed, 'failure hint');
+    });
+    assert($('#trivia-topic').options.length === 1 && $('#trivia-topic').value === '', 'topic list changed');
+    await go('home');
+  });
+
+  await test('topics: next visit retries, groups the list and clears the failure hint', async () => {
+    const log = [];
+    await withFetch(win, triviaStub([], log), async () => {
+      await go('trivia');
+      await waitFor(() => $('#trivia-topic').options.length > 1, 'topics loaded');
+    });
+    assert(log.some((url) => url.includes('api_category.php')), 'no retry');
+    const select = $('#trivia-topic');
+    assert(select.options[0].value === '' && select.options[0].text === "Any ol' topic", select.options[0].text);
+    const groups = [...select.querySelectorAll('optgroup')]
+      .map((g) => `${g.label}: ${[...g.children].map((o) => `${o.text}=${o.value}`).join(', ')}`);
+    assert(JSON.stringify(groups) === JSON.stringify([
+      'Assorted: General Knowledge=9, Science & Nature=17',
+      'Entertainment: Books=10, Film=11',
+      'Science: Computers=18, Gadgets=30',
+    ]), JSON.stringify(groups));
+    assert(text('#trivia-availability') === '', 'failure hint not cleared');
+    await go('home');
+    await go('trivia');
+    assert(log.filter((url) => url.includes('api_category.php')).length === 1, 'topics fetched again');
+    await go('home');
   });
 
   await test('menu switches views and marks the current link', async () => {
@@ -190,6 +245,43 @@
     });
   });
 
+  await test('topics: hint shows how many questions, warns when too few, asks only once', async () => {
+    const log = [];
+    await withFetch(win, triviaStub([], log), async () => {
+      setSelect('#trivia-topic', '30');
+      await waitFor(() => text('#trivia-availability') === TEXT.trivia.available(40, undefined, 'Science: Gadgets'), 'count hint');
+      assert(!$('#trivia-availability').classList.contains('too-few'), 'warned for 3 of 40');
+
+      setSelect('#trivia-difficulty', 'hard');
+      await waitFor(() => text('#trivia-availability') === TEXT.trivia.available(6, 'Gunslinger', 'Science: Gadgets'), 'hard hint');
+
+      setInput('#trivia-amount', '10');
+      await waitFor(() => $('#trivia-availability').classList.contains('too-few'), 'too-few warning');
+      assert(text('#trivia-availability') === TEXT.trivia.available(6, 'Gunslinger', 'Science: Gadgets') + TEXT.trivia.tooFewSuffix,
+        text('#trivia-availability'));
+
+      setInput('#trivia-amount', '3');
+      await waitFor(() => !$('#trivia-availability').classList.contains('too-few'), 'warning cleared');
+    });
+    assert(log.filter((url) => url.includes('api_count.php')).length === 1, `${log.length} requests`);
+    assert(log[0].endsWith('category=30'), log[0]);
+  });
+
+  await test('topics: chosen topic is sent with the quiz; "any" clears the hint', async () => {
+    const log = [];
+    await withFetch(win, triviaStub([triviaItem('Q?', 'A', ['B', 'C', 'D'], 'hard', 'Science: Gadgets')], log), async () => {
+      submit('#trivia-setup');
+      await waitFor(() => shown('#trivia-play'), 'quiz started');
+    });
+    const quizUrl = log.find((url) => url.includes('api.php?'));
+    assert(quizUrl.includes('category=30') && quizUrl.includes('difficulty=hard') && quizUrl.includes('amount=3'), quizUrl);
+    assert(text('#trivia-category') === 'Science: Gadgets');
+    $('#trivia-quit').click();
+    $('#trivia-again').click();
+    setSelect('#trivia-topic', '');
+    await waitFor(() => text('#trivia-availability') === '', 'hint cleared');
+  });
+
   await test('trivia: full quiz by clicking and by keyboard', async () => {
     const items = [
       triviaItem('What does arr[0] return?', 'First item', ['[last]', 'None', 'Error'], 'hard', 'Science: Computers'),
@@ -203,6 +295,7 @@
       await waitFor(() => shown('#trivia-play'), 'quiz started');
     });
     assert(requested.includes('amount=3') && requested.includes('difficulty=hard'), requested);
+    assert(!requested.includes('category='), `topic sent although "any" chosen: ${requested}`);
     assert(!shown('#trivia-setup'), 'setup still visible');
 
     // Question 1: answer correctly by clicking.
