@@ -120,7 +120,7 @@ kbd {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center; /* just the sign: logo and name */
   gap: 0.5rem 1rem;
   padding-block: 0.75rem;
   transition: padding 0.3s var(--ease-out);
@@ -153,45 +153,6 @@ kbd {
   text-shadow: 2px 2px 0 var(--wood-900);
 }
 
-nav ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-nav a {
-  position: relative;
-  display: block;
-  padding: 0.3rem 0.8rem;
-  border: 1px solid var(--wood-900);
-  border-radius: 4px;
-  background: linear-gradient(180deg, var(--wood-400), var(--wood-600));
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.15), 0 2px 0 var(--wood-900);
-  color: var(--parchment);
-  font: 0.95rem/1.4 var(--font-display);
-  text-decoration: none;
-  transform-origin: 50% -10px;
-  transition: background 0.2s, color 0.2s;
-}
-
-nav a:hover { animation: sign-swing 0.7s var(--ease-out); color: var(--brass-light); }
-
-nav a[aria-current="page"] {
-  background: linear-gradient(180deg, #c24a2c, var(--rust-dark));
-  border-color: var(--brass-dark);
-  color: var(--parchment-light);
-}
-
-@keyframes sign-swing {
-  0% { transform: rotate(0); }
-  25% { transform: rotate(5deg); }
-  50% { transform: rotate(-4deg); }
-  75% { transform: rotate(2deg); }
-  100% { transform: rotate(0); }
-}
 
 .scroll-progress {
   position: absolute;
@@ -208,7 +169,17 @@ nav a[aria-current="page"] {
 
 main { overflow-x: clip; padding-bottom: 3rem; }
 
-.view:not(#view-home) { padding-top: 2.5rem; }
+.view:not(#view-home) { padding-top: 1.5rem; }
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 0.9rem;
+  font: 0.95rem/1.2 var(--font-display);
+  color: var(--brass-light);
+  text-decoration: none;
+  transition: color 0.2s, transform 0.2s var(--ease-out);
+}
+.back-link:hover, .back-link:focus-visible { color: var(--parchment-light); transform: translateX(-4px); }
 
 .view-enter { animation: view-in 0.5s var(--ease-out); }
 
@@ -466,6 +437,25 @@ button.secondary {
   color: var(--rust);
   text-transform: uppercase;
 }
+
+/* Sepia "photo" with faint height-chart lines, like a real mugshot */
+.poster-mugshot {
+  display: block;
+  width: 78%;
+  max-width: 11rem;
+  aspect-ratio: 5 / 4;
+  margin: 0.35rem auto 0.45rem;
+  padding: 6%;
+  color: #3b2412;
+  background:
+    repeating-linear-gradient(180deg, transparent 0 15%, rgb(59 36 18 / 0.13) 15% 16.5%),
+    radial-gradient(ellipse at center, #ecd6a8 30%, #c9a46c 100%);
+  border: 3px solid #3b2412;
+  box-shadow: 0 0 0 3px var(--parchment-light), 0 0 0 4px #b8955a, inset 0 0 14px rgb(59 36 18 / 0.45);
+  transition: transform 0.45s var(--ease-bounce);
+}
+.poster-mugshot svg { display: block; width: 100%; height: 100%; }
+.poster:is(:hover, :focus-visible) .poster-mugshot { transform: scale(1.06) rotate(-1.5deg); }
 
 .poster-title {
   font: 1.35rem/1.2 var(--font-display);
@@ -1173,11 +1163,6 @@ label {
 
 @media (max-width: 520px) {
   body { font-size: 16px; }
-  .header-inner { gap: 0.5rem; }
-  nav { width: 100%; }
-  nav ul { justify-content: space-between; gap: 0.3rem; }
-  nav a { padding: 0.25rem 0.5rem; font-size: 0.8rem; }
-  nav li:first-child { display: none; } /* "Saloon": the Hank's Saloon name links home on phones */
   .hm-telegram { padding: 1rem; }
   .hm-telegram .hm-telegram-title { font-size: 1.2rem; }
   .card { padding: 1.25rem 1rem; }

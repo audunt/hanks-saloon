@@ -78,10 +78,11 @@
   }
 
   // --- Menu -----------------------------------------------------------------
-  await test('home view is shown first, with Home marked current', async () => {
+  await test('home view is shown first, and there is no menu bar', async () => {
     assert(shown('#view-home'), 'home hidden');
-    for (const v of ['joke', 'define', 'trivia']) assert(!shown(`#view-${v}`), `${v} visible`);
-    assert(doc.querySelector('nav a[aria-current="page"]').hash === '#home', 'wrong current link');
+    for (const v of ['joke', 'define', 'trivia', 'hangman']) assert(!shown(`#view-${v}`), `${v} visible`);
+    assert(!doc.querySelector('nav'), 'menu bar still present');
+    assert(doc.querySelector('.site-header .brand').hash === '#home', 'sign does not link home');
   });
 
   // --- Trivia topics (run before anything else opens the Showdown, which loads them) ---
@@ -117,18 +118,30 @@
     await go('home');
   });
 
-  await test('menu switches views and marks the current link', async () => {
-    for (const v of ['joke', 'define', 'trivia', 'hangman', 'home']) {
-      await go(v);
-      const visible = ['home', 'joke', 'define', 'trivia', 'hangman'].filter((name) => shown(`#view-${name}`));
-      assert(visible.length === 1 && visible[0] === v, `visible: ${visible}`);
-      assert(doc.querySelector('nav a[aria-current="page"]').hash === `#${v}`, 'wrong current link');
-    }
+  const onlyVisible = () => ['home', 'joke', 'define', 'trivia', 'hangman'].filter((name) => shown(`#view-${name}`));
+
+  await test('home page links to every activity, each poster with its own mugshot', async () => {
+    const posters = [...doc.querySelectorAll('.activities .poster')];
+    assert(JSON.stringify(posters.map((a) => a.hash)) === JSON.stringify(['#joke', '#define', '#trivia', '#hangman']),
+      posters.map((a) => a.hash));
+    const mugs = posters.map((a) => a.querySelector('.poster-mugshot use')?.getAttribute('href'));
+    assert(JSON.stringify(mugs) === JSON.stringify(['#mug-joke', '#mug-lingo', '#mug-trivia', '#mug-hangman']), mugs);
+    assert(mugs.every((id) => doc.querySelector(`symbol${id}`)), 'mugshot artwork missing');
   });
 
-  await test('home page links to every activity', async () => {
-    const links = [...doc.querySelectorAll('.activities a')].map((a) => a.hash);
-    assert(JSON.stringify(links) === JSON.stringify(['#joke', '#define', '#trivia', '#hangman']), links);
+  await test('posters open each activity; its back link and the sign return to the saloon', async () => {
+    for (const view of ['joke', 'define', 'trivia', 'hangman']) {
+      doc.querySelector(`.poster[href="#${view}"]`).click();
+      await waitFor(() => shown(`#view-${view}`), `${view} via poster`);
+      assert(onlyVisible().join() === view, `visible: ${onlyVisible()}`);
+      const back = doc.querySelector(`#view-${view} .back-link`);
+      assert(back && back.hash === '#home', `${view} has no back link`);
+      back.click();
+      await waitFor(() => shown('#view-home'), `home via ${view} back link`);
+    }
+    await go('trivia');
+    doc.querySelector('.site-header .brand').click();
+    await waitFor(() => shown('#view-home') && onlyVisible().join() === 'home', 'home via the sign');
   });
 
   await test('saloon name, title and logo are in place', async () => {

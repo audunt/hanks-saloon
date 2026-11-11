@@ -41,7 +41,7 @@ for (const button of document.querySelectorAll('[data-scroll-to]')) {
   });
 }
 
-// --- Menu / navigation ---------------------------------------------------------
+// --- Views (navigation is by the posters and the Hank's Saloon sign) ---------------------------------------------------------
 
 const VIEWS = ['home', 'joke', 'define', 'trivia', 'hangman'];
 let firstRender = true;
@@ -55,10 +55,6 @@ function showView() {
   const view = currentView();
   for (const name of VIEWS) {
     $(`#view-${name}`).hidden = name !== view;
-  }
-  for (const link of document.querySelectorAll('nav a')) {
-    if (link.hash === `#${view}`) link.setAttribute('aria-current', 'page');
-    else link.removeAttribute('aria-current');
   }
 
   if (!firstRender) {

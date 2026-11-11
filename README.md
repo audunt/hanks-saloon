@@ -15,12 +15,12 @@ Plain HTML, CSS and JavaScript – no build step. Fonts (Rye, Bitter, Special El
 |---|---|
 | `.github/workflows/` | Publishes `site/` to GitHub Pages |
 | `site/` | **The website** – everything in here gets published, nothing else does |
-| `site/index.html` | Page structure, the logo and artwork (SVG), and the static wording |
+| `site/index.html` | Page structure, the logo and artwork (SVG, including the posters' mugshots), and the static wording |
 | `site/style.css` | Styling and animations (colours, fonts and shadows are variables at the top) |
 | `site/favicon.svg` | Browser-tab icon (the logo) |
 | `site/js/copy.js` | The changeable wording – edit here to tweak Hank's voice |
 | `site/js/api.js` | Calls the three APIs (error messages live here too) |
-| `site/js/app.js` | Menu navigation and the behaviour of each activity |
+| `site/js/app.js` | Switching between the saloon and the activities (via the wanted posters), and the behaviour of each activity |
 | `site/js/effects.js` | Eye candy: saloon doors, parallax, scroll reveal, tumbleweed, bullet holes, hat toss |
 | `site/js/hangman.js` | Hangman rules (no page code) |
 | `site/js/hangman-ui.js` | Hangman's Hill on the page; the gallows scene itself is SVG in `index.html`, animated by `style.css` |
