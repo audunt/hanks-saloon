@@ -10,7 +10,8 @@ export class APIError extends Error {
 
 const TIMEOUT_MS = 10000;
 
-const JOKE_URL = 'https://v2.jokeapi.dev/joke/Any';
+// safe-mode leaves out jokes JokeAPI flags as offensive, explicit, religious, political, racist or sexist.
+const JOKE_URL = 'https://v2.jokeapi.dev/joke/Any?safe-mode';
 const DICTIONARY_URL = 'https://api.dictionaryapi.dev/api/v2/entries/en/';
 const TRIVIA_URL = 'https://opentdb.com/api.php';
 const TRIVIA_CATEGORIES_URL = 'https://opentdb.com/api_category.php';

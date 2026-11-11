@@ -2,7 +2,7 @@
 
 A Western-themed web page for trying out fun public APIs:
 
-- **Tall Tales** – a random joke from [JokeAPI](https://v2.jokeapi.dev/)
+- **Tall Tales** – a random family-friendly joke from [JokeAPI](https://v2.jokeapi.dev/) (its safe mode is on)
 - **Frontier Lingo** – the definition of an English word from the [Free Dictionary API](https://dictionaryapi.dev/)
 - **Trivia Showdown** – a multiple-choice quiz from the [Open Trivia Database](https://opentdb.com/), with a choice of 24 topics
 

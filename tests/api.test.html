@@ -21,6 +21,13 @@
     withFetch(window, async () => jsonResponse({ error: true, message: 'No matching joke found' }, 400),
       () => rejectsWithAPIError(getJoke(), /tongue-tied: No matching joke found/)));
 
+  await test('joke: safe mode is requested', async () => {
+    let requested = '';
+    await withFetch(window, async (url) => { requested = url; return jsonResponse({ type: 'single', joke: 'J' }); },
+      () => getJoke());
+    assert(new URL(requested).searchParams.has('safe-mode'), requested);
+  });
+
   await test('joke: two-part joke is split into text and punchline', () =>
     withFetch(window, async () => jsonResponse({ type: 'twopart', setup: 'S', delivery: 'P' }), async () => {
       const joke = await getJoke();
@@ -153,10 +160,23 @@
     info(`Science: Gadgets counts ${JSON.stringify(counts)}`);
   });
 
-  await test('LIVE joke', async () => {
-    const joke = await getJoke();
-    assert(typeof joke.text === 'string' && joke.text.length > 0, 'empty joke');
-    info(`joke type: ${joke.punchline === null ? 'single' : 'twopart'}`);
+  await test('LIVE jokes are all marked safe', async () => {
+    // Peek at JokeAPI's own "safe" flag on a few real jokes while getJoke() fetches them.
+    const realFetch = window.fetch;
+    const verdicts = [];
+    await withFetch(window, async (...args) => {
+      const response = await realFetch(...args);
+      const body = await response.clone().json();
+      verdicts.push(`${body.safe ? 'safe' : 'UNSAFE'} ${body.category}`);
+      return response;
+    }, async () => {
+      for (let i = 0; i < 5; i++) {
+        const joke = await getJoke();
+        assert(typeof joke.text === 'string' && joke.text.length > 0, 'empty joke');
+      }
+    });
+    info(`live jokes: ${verdicts.join(', ')}`);
+    assert(verdicts.every((v) => v.startsWith('safe')), verdicts.join(', '));
   });
 
   await test('LIVE define hello', async () => {
