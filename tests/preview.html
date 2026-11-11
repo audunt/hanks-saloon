@@ -8,7 +8,8 @@
 </head>
 <body>
 <!-- Puts the app into a given state with fake data, for screenshots.
-     Usage: preview.html?state=home|joke|define|define-error|trivia-setup|trivia-question|trivia-result|trivia-perfect
+     Usage: preview.html?state=home|joke|define|define-error|trivia-setup|trivia-question|trivia-result|trivia-perfect|hangman
+     For hangman, add &misses=0…6 for each stage of the scene, or &won.
      Add &width=375 for a phone-sized frame, &doors to play the saloon-doors intro,
      &doorsAt=0.8 to freeze the intro 0.8 seconds in, or &hatsAt=1 (with trivia-perfect) to freeze the hat toss. Other animations are fast-forwarded
      to their end so screenshots are predictable. -->
@@ -66,6 +67,21 @@
     go('define');
     $('#define-input').value = state === 'define-error' ? 'qwzxv' : 'serendipity';
     $('#define-form').requestSubmit();
+  } else if (state === 'hangman') {
+    // Hank deals WORDS[0]; guess two right letters, then &misses=N wrong ones, or the whole word with &won.
+    win.Math.random = () => 0;
+    go('hangman');
+    await wait(100);
+    const { WORDS } = await import('../site/js/hangman-words.js');
+    const { word } = WORDS[0];
+    const press = (letter) => $(`#hm-keyboard [data-letter="${letter}"]`).click();
+    if (params.has('won')) {
+      [...new Set(word)].forEach(press);
+    } else {
+      [...new Set(word)].slice(0, 2).forEach(press);
+      const wrong = [...'zqxjvkwy'].filter((l) => !word.includes(l));
+      wrong.slice(0, Number(params.get('misses') || 0)).forEach(press);
+    }
   } else if (state === 'trivia-setup') {
     // Topic chosen, with more rounds than Hank has questions, so the warning shows.
     go('trivia');

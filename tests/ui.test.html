@@ -14,6 +14,7 @@
 <script type="module">
   import { test, info, assert, withFetch, jsonResponse, waitFor, finish } from './harness.js';
   import { TEXT } from '../site/js/copy.js';
+  import { WORDS } from '../site/js/hangman-words.js';
 
   const gradeText = (percent) => TEXT.trivia.grades.find(([minimum]) => percent >= minimum)[2];
 
@@ -24,6 +25,8 @@
   });
   const win = frame.contentWindow;
   const doc = frame.contentDocument;
+  // Predictable "random" numbers: Hank then deals hangman words in list order (WORDS[0], WORDS[1], …).
+  win.Math.random = () => 0;
   const $ = (selector) => doc.querySelector(selector);
   const shown = (selector) => {
     const el = $(selector);
@@ -115,9 +118,9 @@
   });
 
   await test('menu switches views and marks the current link', async () => {
-    for (const v of ['joke', 'define', 'trivia', 'home']) {
+    for (const v of ['joke', 'define', 'trivia', 'hangman', 'home']) {
       await go(v);
-      const visible = ['home', 'joke', 'define', 'trivia'].filter((name) => shown(`#view-${name}`));
+      const visible = ['home', 'joke', 'define', 'trivia', 'hangman'].filter((name) => shown(`#view-${name}`));
       assert(visible.length === 1 && visible[0] === v, `visible: ${visible}`);
       assert(doc.querySelector('nav a[aria-current="page"]').hash === `#${v}`, 'wrong current link');
     }
@@ -125,7 +128,7 @@
 
   await test('home page links to every activity', async () => {
     const links = [...doc.querySelectorAll('.activities a')].map((a) => a.hash);
-    assert(JSON.stringify(links) === JSON.stringify(['#joke', '#define', '#trivia']), links);
+    assert(JSON.stringify(links) === JSON.stringify(['#joke', '#define', '#trivia', '#hangman']), links);
   });
 
   await test('saloon name, title and logo are in place', async () => {
@@ -398,6 +401,95 @@
     $('#trivia-again').click();
   });
 
+  // --- Hangman's Hill -------------------------------------------------------------
+  const scene = () => $('#hm-scene');
+  const key = (letter) => $(`#hm-keyboard [data-letter="${letter}"]`);
+  const keys = () => [...doc.querySelectorAll('#hm-keyboard .hm-key')];
+  const letters = () => [...doc.querySelectorAll('#hm-word .hm-letter')].map((l) => l.textContent || '_').join('');
+  const missingFrom = (word) => [...'abcdefghijklmnopqrstuvwxyz'].filter((l) => !word.includes(l));
+
+  await test('hangman: first visit deals a word in blanks on an empty gallows', async () => {
+    await go('hangman');
+    const { word } = WORDS[0];
+    assert(letters() === '_'.repeat(word.length), letters());
+    assert(scene().dataset.stage === '0' && !scene().dataset.result, JSON.stringify(scene().dataset));
+    assert(keys().length === 26 && keys().every((k) => !k.disabled), 'keyboard not ready');
+    assert(text('#hm-story') === TEXT.hangman.story[0], text('#hm-story'));
+    assert(text('#hm-misses') === TEXT.hangman.misses(0, 6), text('#hm-misses'));
+    assert(!shown('#hm-telegram'), 'telegram already showing');
+    assert($('#hm-word').getAttribute('aria-label').startsWith(TEXT.hangman.wordLabel(word.length)), 'no label for screen readers');
+  });
+
+  await test('hangman: right letters reveal, wrong ones march the cowboy on', async () => {
+    const { word } = WORDS[0];
+    const right = word[2];
+    key(right).click();
+    assert(letters() === [...word].map((l) => (l === right ? l : '_')).join(''), letters());
+    assert(key(right).disabled && key(right).classList.contains('hit'), 'hit key not marked');
+    assert(scene().dataset.stage === '0', 'a right guess moved the scene');
+
+    const wrong = missingFrom(word);
+    for (let miss = 1; miss <= 5; miss++) {
+      pressKey(wrong[miss - 1]);
+      assert(scene().dataset.stage === String(miss), `stage ${scene().dataset.stage} after ${miss} misses`);
+      assert(text('#hm-story') === TEXT.hangman.story[miss], text('#hm-story'));
+      assert(key(wrong[miss - 1]).classList.contains('miss'), 'miss key not marked');
+    }
+    assert(text('#hm-misses') === TEXT.hangman.misses(5, 6), text('#hm-misses'));
+    assert(text('#hm-wrong') === wrong.slice(0, 5).join(' ').toUpperCase(), text('#hm-wrong'));
+
+    pressKey(wrong[0]); // already guessed: ignored
+    key(right).click();
+    assert(scene().dataset.stage === '5', 'repeat guess counted');
+  });
+
+  await test('hangman: the sixth miss pulls the lever and the telegram gives the word', async () => {
+    const { word, meaning } = WORDS[0];
+    pressKey(missingFrom(word)[5]);
+    assert(scene().dataset.stage === '6' && scene().dataset.result === 'lost', JSON.stringify(scene().dataset));
+    assert(shown('#hm-telegram') && $('#hm-telegram').classList.contains('lost'), 'no telegram');
+    assert(text('#hm-telegram-title') === TEXT.hangman.lostTitle, text('#hm-telegram-title'));
+    assert(text('#hm-telegram-word') === word && text('#hm-telegram-meaning') === meaning, text('#hm-telegram-word'));
+    assert(text('#hm-story') === TEXT.hangman.story[6], text('#hm-story'));
+    assert(letters() === word, `word not revealed: ${letters()}`);
+    assert(keys().every((k) => k.disabled), 'keys still enabled');
+    pressKey(missingFrom(word)[6]);
+    assert(text('#hm-misses') === TEXT.hangman.misses(6, 6), 'guess accepted after losing');
+  });
+
+  await test('hangman: "Another word" resets the scene with a new word', async () => {
+    $('#hm-new').click();
+    const { word } = WORDS[1];
+    assert(letters() === '_'.repeat(word.length), letters());
+    assert(scene().dataset.stage === '0' && !scene().dataset.result, JSON.stringify(scene().dataset));
+    assert(!shown('#hm-telegram'), 'telegram still showing');
+    assert(keys().every((k) => !k.disabled && k.className === 'hm-key'), 'keys not reset');
+    assert(text('#hm-wrong') === '' && text('#hm-story') === TEXT.hangman.story[0], 'old game left over');
+    assert(!scene().classList.contains('hm-reset'), 'animations left switched off');
+  });
+
+  await test('hangman: guessing every letter saves the cowboy', async () => {
+    const { word, meaning } = WORDS[1];
+    pressKey(missingFrom(word)[0]); // one miss on the way
+    for (const letter of new Set(word)) key(letter).click();
+    assert(scene().dataset.result === 'won', JSON.stringify(scene().dataset));
+    assert(text('#hm-story') === TEXT.hangman.storyWon, text('#hm-story'));
+    assert(shown('#hm-telegram') && !$('#hm-telegram').classList.contains('lost'), 'no win telegram');
+    assert(text('#hm-telegram-title') === TEXT.hangman.wonTitle && text('#hm-telegram-meaning') === meaning, text('#hm-telegram-title'));
+    assert(letters() === word && keys().every((k) => k.disabled), 'board not finished');
+  });
+
+  await test('hangman: typing does nothing on other views, and the game waits for you', async () => {
+    $('#hm-new').click();
+    const { word } = WORDS[2];
+    await go('joke');
+    pressKey(word[0]);
+    pressKey(missingFrom(word)[0]);
+    await go('hangman');
+    assert(letters() === '_'.repeat(word.length), `game changed while away: ${letters()}`);
+    assert(scene().dataset.stage === '0', 'miss counted while away');
+  });
+
   // --- Phone width ----------------------------------------------------------------
   await test('no sideways scrolling at 360px wide on any view', async () => {
     frame.style.width = '360px';
@@ -415,7 +507,7 @@
         submit('#trivia-setup');
         await waitFor(() => shown('#trivia-play'), 'quiz');
       });
-      for (const view of ['home', 'joke', 'define', 'trivia']) {
+      for (const view of ['home', 'joke', 'define', 'trivia', 'hangman']) {
         await go(view);
         const root = doc.documentElement;
         assert(root.scrollWidth <= root.clientWidth, `${view}: page is ${root.scrollWidth}px wide in a ${root.clientWidth}px window`);

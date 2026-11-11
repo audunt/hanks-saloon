@@ -239,6 +239,7 @@ main { overflow-x: clip; padding-bottom: 3rem; }
 .motion .reveal.is-visible { opacity: 1; transform: none; }
 .motion .posters .reveal:nth-child(2) { transition-delay: 0.12s; }
 .motion .posters .reveal:nth-child(3) { transition-delay: 0.24s; }
+.motion .posters .reveal:nth-child(4) { transition-delay: 0.36s; }
 
 /* --- Hero: sunset over town ------------------------------------------------- */
 
@@ -405,8 +406,12 @@ button.secondary {
   list-style: none;
 }
 
-@media (min-width: 720px) {
-  .activities { grid-template-columns: repeat(3, 1fr); }
+@media (min-width: 640px) {
+  .activities { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 960px) {
+  .activities { grid-template-columns: repeat(4, 1fr); gap: 1.5rem; }
 }
 
 .poster {
@@ -433,6 +438,7 @@ button.secondary {
 
 .activities li:nth-child(2) .poster { --tilt: 1.5deg; }
 .activities li:nth-child(3) .poster { --tilt: -1deg; }
+.activities li:nth-child(4) .poster { --tilt: 2deg; }
 
 .poster:hover,
 .poster:focus-visible {
@@ -858,6 +864,151 @@ label {
 
 .result-message { margin: 0 0 1.25rem; font: 1.2rem/1.4 var(--font-display); color: var(--ink); }
 
+/* --- Hangman's Hill ------------------------------------------------------------ */
+
+/* The scene and the telegram share one grid cell, so the telegram covers the scene and,
+   if it's the taller of the two (on phones), the area grows instead of overlapping what's below. */
+.gallows-stage { display: grid; }
+.gallows-stage > * { grid-area: 1 / 1; }
+
+.hm-scene {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.3);
+}
+
+/* Each actor's position per stage (scene units; the ground is at y=230, the platform at y=150). */
+#hm-cowboy { transform: translate(-40px, 230px); transition: transform 1.4s linear; }
+.hm-scene[data-stage="1"] #hm-cowboy { transform: translate(95px, 230px); }
+.hm-scene[data-stage="2"] #hm-cowboy { transform: translate(160px, 230px); }
+.hm-scene:is([data-stage="3"], [data-stage="4"], [data-stage="5"], [data-stage="6"]) #hm-cowboy {
+  transform: translate(280px, 150px);
+}
+/* Climbing follows the steps rather than a straight line. */
+.hm-scene[data-stage="3"] #hm-cowboy { animation: hm-climb 1.8s linear both; }
+
+@keyframes hm-climb {
+  0% { transform: translate(160px, 230px); }
+  14% { transform: translate(176px, 210px); }
+  28% { transform: translate(189px, 190px); }
+  42% { transform: translate(201px, 170px); }
+  56% { transform: translate(214px, 150px); }
+  100% { transform: translate(280px, 150px); }
+}
+
+/* The noose starts high and is lowered round his neck; on a win it's lifted off again. */
+.hm-noose { transform: translateY(-40px); transition: transform 1.2s ease-in-out; }
+.hm-scene:is([data-stage="4"], [data-stage="5"], [data-stage="6"]) .hm-noose { transform: none; }
+.hm-scene[data-result="won"] .hm-noose { transform: translateY(-40px); }
+
+#hm-exec { transform: translate(450px, 150px); transition: transform 1.6s linear; }
+.hm-scene:is([data-stage="5"], [data-stage="6"]) #hm-exec { transform: translate(342px, 150px); }
+
+#hm-lever { transform-origin: 317px 150px; transition: transform 0.3s ease-in; }
+.hm-scene[data-stage="6"] #hm-lever { transform: rotate(35deg); }
+#hm-trapdoor { transform-origin: 262px 154px; transition: transform 0.35s ease-in 0.25s; }
+.hm-scene[data-stage="6"] #hm-trapdoor { transform: rotate(80deg); }
+
+/* Legs swing while walking or climbing. */
+.hm-scene .leg { transform-box: fill-box; transform-origin: 50% 0; }
+.hm-scene:is([data-stage="1"], [data-stage="2"]) #hm-cowboy .leg-a { animation: hm-stride 0.35s ease-in-out 0s 4 alternate; }
+.hm-scene:is([data-stage="1"], [data-stage="2"]) #hm-cowboy .leg-b { animation: hm-stride 0.35s ease-in-out 0s 4 alternate-reverse; }
+.hm-scene[data-stage="3"] #hm-cowboy .leg-a { animation: hm-stride 0.36s ease-in-out 0s 5 alternate; }
+.hm-scene[data-stage="3"] #hm-cowboy .leg-b { animation: hm-stride 0.36s ease-in-out 0s 5 alternate-reverse; }
+.hm-scene[data-stage="5"] #hm-exec .leg-a { animation: hm-stride 0.4s ease-in-out 0s 4 alternate; }
+.hm-scene[data-stage="5"] #hm-exec .leg-b { animation: hm-stride 0.4s ease-in-out 0s 4 alternate-reverse; }
+
+@keyframes hm-stride {
+  from { transform: rotate(-22deg); }
+  to { transform: rotate(22deg); }
+}
+
+/* Saved: the cowboy tips his hat. */
+.hm-hat { transform-box: fill-box; transform-origin: 50% 100%; }
+.hm-scene[data-result="won"] .hm-hat { animation: hm-hat-tip 0.9s ease-in-out 0.8s 2; }
+
+@keyframes hm-hat-tip {
+  0%, 100% { transform: none; }
+  50% { transform: translateY(-7px) rotate(-18deg); }
+}
+
+/* Starting a new word jumps straight back to the empty gallows. */
+.hm-reset, .hm-reset * { transition: none !important; animation: none !important; }
+
+/* The telegram lands over the scene when the round ends. */
+.hm-telegram {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: 0 12px 30px rgb(0 0 0 / 0.55);
+}
+.hm-telegram.lost { animation-delay: 0.45s; } /* right after the lever is pulled */
+.hm-telegram.won { animation-delay: 2.8s; }   /* after the noose lifts and he tips his hat */
+.hm-telegram .hm-telegram-title { font: 1.5rem/1.2 var(--font-type); letter-spacing: 0.06em; text-transform: uppercase; }
+.hm-telegram-line { margin: 0.25rem 0 0.75rem; font-size: 1.05rem; }
+.hm-telegram-word { font-size: 1.35rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink); }
+.hm-stop { color: var(--rust); letter-spacing: 0.1em; }
+
+.hm-story { margin: 1rem 0 0; min-height: 1.6em; font-style: italic; text-align: center; color: var(--ink); }
+
+.hm-word {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25em;
+  margin: 1rem 0 0.75rem;
+  font: clamp(1.15rem, 5.5vw, 1.9rem)/1 var(--font-type);
+}
+
+.hm-letter {
+  width: 1.15em;
+  min-height: 1.3em;
+  padding-bottom: 0.1em;
+  border-bottom: 3px solid var(--ink);
+  text-align: center;
+  text-transform: uppercase;
+}
+.hm-letter.shown { animation: hm-pop 0.3s var(--ease-bounce); }
+.hm-letter.missed { color: var(--rust); border-bottom-color: var(--rust); }
+
+@keyframes hm-pop {
+  from { transform: scale(0.4); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+.hm-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  font-size: 0.95rem;
+  color: var(--ink-muted);
+}
+.hm-misses { font-family: var(--font-display); color: var(--ink); }
+.hm-wrong { font-family: var(--font-type); letter-spacing: 0.15em; color: var(--rust); }
+
+.hm-keyboard { display: grid; gap: 0.4rem; margin-top: 1rem; }
+.hm-key-row { display: flex; justify-content: center; gap: 0.35rem; }
+
+.hm-key {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 2.8rem;
+  height: 2.8rem;
+  padding: 0;
+  font: 1.1rem/1 var(--font-type);
+  letter-spacing: 0;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.55), 0 3px 0 var(--wood-900);
+}
+.hm-key::after { display: none; }
+.hm-key:disabled { cursor: default; filter: none; }
+.hm-key.hit { background: var(--success-bg); border-color: var(--success); color: var(--success); box-shadow: none; }
+.hm-key.miss { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); box-shadow: none; text-decoration: line-through; }
+.hm-key:disabled:not(.hit):not(.miss) { opacity: 0.45; box-shadow: none; }
+
 /* Hats tossed in the air */
 .hat-toss {
   position: fixed;
@@ -1025,7 +1176,10 @@ label {
   .header-inner { gap: 0.5rem; }
   nav { width: 100%; }
   nav ul { justify-content: space-between; gap: 0.3rem; }
-  nav a { padding: 0.25rem 0.5rem; font-size: 0.82rem; }
+  nav a { padding: 0.25rem 0.5rem; font-size: 0.8rem; }
+  nav li:first-child { display: none; } /* "Saloon": the Hank's Saloon name links home on phones */
+  .hm-telegram { padding: 1rem; }
+  .hm-telegram .hm-telegram-title { font-size: 1.2rem; }
   .card { padding: 1.25rem 1rem; }
   .joke-card { padding: 1.75rem 1.25rem 1.5rem 3rem; }
   .joke-card::before { left: 0.6rem; font-size: 3.5rem; }

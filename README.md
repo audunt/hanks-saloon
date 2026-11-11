@@ -5,6 +5,7 @@ A Western-themed web page for trying out fun public APIs:
 - **Tall Tales** – a random family-friendly joke from [JokeAPI](https://v2.jokeapi.dev/) (its safe mode is on)
 - **Frontier Lingo** – the definition of an English word from the [Free Dictionary API](https://dictionaryapi.dev/)
 - **Trivia Showdown** – a multiple-choice quiz from the [Open Trivia Database](https://opentdb.com/), with a choice of 24 topics
+- **Hangman's Hill** – one-player hangman with Hank's own list of words and meanings (built in, so it works even when the APIs are down). Each wrong guess walks the cowboy closer to the gallows.
 
 Plain HTML, CSS and JavaScript – no build step. Fonts (Rye, Bitter, Special Elite) load from Google Fonts. All animations switch off for visitors whose system is set to reduce motion.
 
@@ -21,6 +22,9 @@ Plain HTML, CSS and JavaScript – no build step. Fonts (Rye, Bitter, Special El
 | `site/js/api.js` | Calls the three APIs (error messages live here too) |
 | `site/js/app.js` | Menu navigation and the behaviour of each activity |
 | `site/js/effects.js` | Eye candy: saloon doors, parallax, scroll reveal, tumbleweed, bullet holes, hat toss |
+| `site/js/hangman.js` | Hangman rules (no page code) |
+| `site/js/hangman-ui.js` | Hangman's Hill on the page; the gallows scene itself is SVG in `index.html`, animated by `style.css` |
+| `site/js/hangman-words.js` | Hank's word list – add or remove words freely (lowercase letters only, one-sentence meaning) |
 | `tests/` | Browser tests and a preview page (not published) |
 
 ## Try it locally
@@ -50,7 +54,7 @@ Requires Python and Microsoft Edge or Google Chrome. From this project's folder:
 python tests/run_tests.py
 ```
 
-This runs `api.test.html` (the API code, with simulated and live responses) and `ui.test.html` (clicks through the page). Some tests use the live APIs, so they need an internet connection.
+This runs `api.test.html` (the API code, with simulated and live responses), `hangman.test.html` (the hangman rules and checks on the word list) and `ui.test.html` (clicks through the page). Some tests use the live APIs, so they need an internet connection.
 
 **Preview page:** `tests/preview.html` shows the page in a given state with made-up data – handy when working on the styling. Serve this project's folder and open it:
 
@@ -58,6 +62,6 @@ This runs `api.test.html` (the API code, with simulated and live responses) and 
 python -m http.server 8000
 ```
 
-Then open http://localhost:8000/tests/preview.html?state=trivia-question. States: `home`, `joke`, `define`, `define-error`, `trivia-setup`, `trivia-question`, `trivia-result`, `trivia-perfect`. Extras: `&width=375` for phone width, `&doors` to play the saloon-doors intro, `&doorsAt=0.6` to freeze it 0.6 s in, `&hatsAt=1` (with `trivia-perfect`) to freeze the hat toss.
+Then open http://localhost:8000/tests/preview.html?state=trivia-question. States: `home`, `joke`, `define`, `define-error`, `trivia-setup`, `trivia-question`, `trivia-result`, `trivia-perfect`, `hangman` (add `&misses=0`…`6` for each stage of the gallows scene, or `&won`). Extras: `&width=375` for phone width, `&doors` to play the saloon-doors intro, `&doorsAt=0.6` to freeze it 0.6 s in, `&hatsAt=1` (with `trivia-perfect`) to freeze the hat toss.
 
 The saloon doors only play once per browser session. To see them again, open the site in a new tab.

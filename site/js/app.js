@@ -3,6 +3,7 @@ import {
   APIError, getJoke, getDefinition, getTriviaQuestions, getTriviaCategories, getTriviaQuestionCount,
 } from './api.js';
 import { TEXT } from './copy.js';
+import { initHangman } from './hangman-ui.js';
 import {
   initDoors, initScrollEffects, initReveal, initTumbleweed,
   bulletHole, shake, tossHats, reducedMotion,
@@ -42,7 +43,7 @@ for (const button of document.querySelectorAll('[data-scroll-to]')) {
 
 // --- Menu / navigation ---------------------------------------------------------
 
-const VIEWS = ['home', 'joke', 'define', 'trivia'];
+const VIEWS = ['home', 'joke', 'define', 'trivia', 'hangman'];
 let firstRender = true;
 
 function currentView() {
@@ -70,6 +71,7 @@ function showView() {
   firstRender = false;
   refreshScrollEffects();
   if (view === 'trivia') loadTopics();
+  if (view === 'hangman') hangman.show();
 }
 
 window.addEventListener('hashchange', showView);
@@ -407,6 +409,10 @@ document.addEventListener('keydown', (event) => {
     chooseAnswer(choice);
   }
 });
+
+// --- Hangman's Hill (see hangman-ui.js) ------------------------------------------
+
+const hangman = initHangman({ isActive: () => currentView() === 'hangman' });
 
 // Show the view named in the address (or the saloon) now that everything is set up.
 showView();

@@ -42,4 +42,25 @@ export const TEXT = {
       : `Hank's got up to ${count} ${grit ? `${grit} ` : ''}question${count === 1 ? '' : 's'} on ${topic}.`,
     tooFewSuffix: ' Ask for fewer rounds, partner.',
   },
+
+  hangman: {
+    newGame: 'Another word',
+    misses: (count, max) => `Misses: ${count} of ${max}`,
+    wrong: 'Wrong guesses:',
+    wordLabel: (length) => `Hank's word, ${length} letters`,
+    blank: 'blank',
+    // One line per number of misses (0–6), narrating the scene.
+    story: [
+      "A cowboy's been wrongly accused. Guess Hank's word to save his neck.",
+      "They're marchin' him down Main Street…",
+      "He's reached the gallows.",
+      'Up the steps he goes.',
+      "The noose is round his neck. Choose carefully, partner.",
+      "The executioner's at the lever. One more miss…",
+      "The lever's pulled. It's curtains.",
+    ],
+    storyWon: 'You saved his neck! The cowboy walks free.',
+    wonTitle: 'Saved by a word',
+    lostTitle: 'Too late, partner',
+  },
 };

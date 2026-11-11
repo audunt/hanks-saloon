@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Hangman tests</title>
+</head>
+<body>
+<pre id="results">running...</pre>
+<script type="module">
+  import { test, info, assert, finish } from './harness.js';
+  import { MAX_MISSES, newGame, guess, revealed, wrongGuesses, pickWord } from '../site/js/hangman.js';
+  import { WORDS } from '../site/js/hangman-words.js';
+
+  const play = (game, letters) => [...letters].reduce((g, letter) => guess(g, letter).game, game);
+  const saddle = { word: 'Saddle', meaning: 'A seat.' };
+
+  // --- Rules ------------------------------------------------------------------
+  await test('new game starts with nothing guessed', () => {
+    const game = newGame(saddle);
+    assert(game.word === 'saddle' && game.misses === 0 && game.status === 'playing' && game.guesses.length === 0, JSON.stringify(game));
+  });
+
+  await test('a hit reveals every copy of the letter', () => {
+    const { game, result } = guess(newGame(saddle), 'd');
+    assert(result === 'hit' && game.misses === 0, result);
+    assert(revealed(game).map((l) => (l.shown ? l.letter : '_')).join('') === '__dd__', JSON.stringify(revealed(game)));
+  });
+
+  await test('a miss counts and is listed as wrong', () => {
+    const { game, result } = guess(newGame(saddle), 'z');
+    assert(result === 'miss' && game.misses === 1, result);
+    assert(JSON.stringify(wrongGuesses(game)) === '["z"]');
+  });
+
+  await test('guesses ignore case; repeats and non-letters are ignored', () => {
+    let game = guess(newGame(saddle), 'S').game;
+    assert(game.guesses.includes('s'), 'uppercase not accepted');
+    for (const input of ['s', 'S', '1', ' ', 'ab', 'é', '']) {
+      const { game: after, result } = guess(game, input);
+      assert(result === 'ignored' && after === game, `input "${input}" was ${result}`);
+    }
+  });
+
+  await test('guessing the whole word wins', () => {
+    const game = play(newGame(saddle), 'sadle');
+    assert(game.status === 'won', game.status);
+    assert(guess(game, 'z').result === 'ignored', 'guess accepted after winning');
+  });
+
+  await test(`the ${MAX_MISSES}th miss loses, and the game then stops`, () => {
+    const almost = play(newGame(saddle), 'zxqwv');
+    assert(almost.status === 'playing' && almost.misses === MAX_MISSES - 1, JSON.stringify(almost));
+    const lost = guess(almost, 'y').game;
+    assert(lost.status === 'lost' && lost.misses === MAX_MISSES, JSON.stringify(lost));
+    assert(guess(lost, 's').result === 'ignored', 'guess accepted after losing');
+  });
+
+  await test('winning on the last allowed miss still counts as a win', () => {
+    const game = play(newGame(saddle), 'zxqwv' + 'sadle');
+    assert(game.status === 'won' && game.misses === MAX_MISSES - 1, JSON.stringify(game));
+  });
+
+  await test('the original game is never changed', () => {
+    const start = newGame(saddle);
+    guess(start, 'z');
+    guess(start, 's');
+    assert(start.misses === 0 && start.guesses.length === 0, JSON.stringify(start));
+  });
+
+  await test('pickWord avoids recent words, then allows repeats once all are used', () => {
+    const words = [{ word: 'a' }, { word: 'b' }, { word: 'c' }];
+    assert(pickWord(words, ['a', 'b'], () => 0.99).word === 'c', 'picked a recent word');
+    assert(pickWord(words, ['a'], () => 0).word === 'b', 'not the first fresh word');
+    assert(words.includes(pickWord(words, ['a', 'b', 'c'], () => 0.5)), 'no word when all were recent');
+  });
+
+  // --- Hank's word list ---------------------------------------------------------
+  await test(`word list: ${WORDS.length} words, lowercase letters only, 4–12 long, no duplicates`, () => {
+    assert(WORDS.length >= 100, `only ${WORDS.length} words`);
+    const bad = WORDS.filter(({ word }) => !/^[a-z]{4,12}$/.test(word)).map((w) => w.word);
+    assert(bad.length === 0, `bad words: ${bad}`);
+    const seen = new Set();
+    const duplicates = WORDS.filter(({ word }) => seen.has(word) || !seen.add(word)).map((w) => w.word);
+    assert(duplicates.length === 0, `duplicates: ${duplicates}`);
+  });
+
+  await test('word list: every word has a one-sentence meaning that doesn\'t give it away', () => {
+    const problems = WORDS.filter(({ word, meaning }) => typeof meaning !== 'string'
+      || !/^[A-Z].{9,120}\.$/.test(meaning)
+      || new RegExp(`\\b${word}\\b`, 'i').test(meaning)).map((w) => w.word);
+    assert(problems.length === 0, `check meanings of: ${problems}`);
+    info(`longest word: ${WORDS.reduce((a, b) => (b.word.length > a.word.length ? b : a)).word}`);
+  });
+
+  finish();
+</script>
+</body>
+</html>
