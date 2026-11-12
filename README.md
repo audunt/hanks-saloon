@@ -37,3 +37,5 @@ Plain HTML, CSS and JavaScript – no frameworks and no build step. Fonts (Rye, 
 | `site/js/quickdraw.js` | Quick Draw rules (no page code) |
 | `site/js/quickdraw-ui.js` | Quick Draw on the page: bottles, holster, shots and the saloon record |
 | `tests/` | Browser tests and a preview page used during development (not published) |
+| `tools/` | Development helpers: screenshots, deploy check and a pre-publish audit (not published) |
+| `AGENTS.md`, `CLAUDE.md`, `.claude/skills/` | The AI harness: everything an AI agent needs to pick up development – working agreements, architecture, style guide, testing and deploy routines |
